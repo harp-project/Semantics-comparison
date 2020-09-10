@@ -99,4 +99,38 @@ Definition badarity (v : Value) : Exception :=
 Definition if_clause : Exception := 
   (Error, VLit (Atom "if_clause"%string), ErrorValue).
 
+Definition Literal_eqb (l1 l2 : Literal) : bool :=
+match l1, l2 with
+| Atom s1, Atom s2 => eqb s1 s2
+| Integer x1, Integer x2 => Z.eqb x1 x2
+| _, _ => false
+end.
 
+
+Fixpoint Pattern_eqb (p1 p2 : Pattern) {struct p1} : bool :=
+match p1, p2 with
+| PVar v1, PVar v2 => eqb v1 v2
+| PLit l1, PLit l2 => Literal_eqb l1 l2
+| PCons hd tl, PCons hd' tl' => Pattern_eqb hd hd' && Pattern_eqb tl tl'
+| PTuple l, PTuple l' => (fix blist_eq l l' := match l, l' with
+                                     | [], [] => true
+                                     | x::xs, x'::xs' => andb (Pattern_eqb x x') (blist_eq xs xs')
+                                     | _, _ => false
+                                     end) l l'
+| PNil, PNil => true
+| _, _ => false
+end.
+
+Fixpoint Value_eqb (e1 e2 : Value) : bool :=
+match e1, e2 with
+| VNil, VNil => true
+| VLit l, VLit l' => Literal_eqb l l'
+| VClos env ext id p b, VClos env' ext' id' p' b' => Nat.eqb id id'
+| VCons hd tl, VCons hd' tl' => Value_eqb hd hd' && Value_eqb tl tl'
+| VTuple l, VTuple l' => (fix blist l l' := match l, l' with
+                                           | [], [] => true
+                                           | x::xs, x'::xs' => andb (Value_eqb x x') (blist xs xs')
+                                           | _, _ => false
+                                           end) l l'
+| _, _ => false
+end.
