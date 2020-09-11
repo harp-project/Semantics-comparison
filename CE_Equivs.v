@@ -541,13 +541,26 @@ Proof.
     - pose (list_exception_sound _ _ _ _ _ _ _ _ _ _ H H6 H9 H2 H5 H4).
       inversion e. exists (S x). simpl. rewrite H1. auto.
 
+Admitted.
+
+Theorem fbos_correct :
+  forall env id exp eff id' res eff',
+  (exists clock, eval_fbos_expr env id exp eff clock = Result id' res eff')
+->
+  | env, id, exp, eff | -e> |id', res, eff'|.
+Proof.
+Admitted.
 
 
-
-
-
-
-
+(** determinism is trivial *)
+Theorem fbos_deterministic :
+  forall env id exp eff clock r r',
+  eval_fbos_expr env id exp eff clock = r ->
+  eval_fbos_expr env id exp eff clock = r' ->
+  r = r'.
+Proof.
+  intros. rewrite H in H0. auto.
+Qed.
 
 
 
