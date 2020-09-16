@@ -35,9 +35,9 @@ Definition eval_io (fname : string) (params : list Value) (eff : SideEffectList)
    : ((Value + Exception) * SideEffectList) :=
 match fname, length params, params with
 (** writing *)
-| "fwrite"%string, 1, _ => (inl ok                                    , eff ++ [(Output, params)])
+| "fwrite"%string, 1, _ => (inl ok                                    , eff ++ [(Output, params)] )
 (** reading *)
-| "fread"%string , 2, e => (inl (VTuple [ok; nth 1 params ErrorValue]), eff ++ [(Input, params)])
+| "fread"%string , 2, e => (inl (VTuple [ok; nth 1 params ErrorValue]), eff ++ [(Input,  params)])
 (** anything else *)
 | _              , _, _ => (inr (undef (VLit (Atom fname)))           , eff)
 end.

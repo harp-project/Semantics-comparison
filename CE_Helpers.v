@@ -250,3 +250,67 @@ match v1, v2 with
 | inr f1, inr f2 => funid_eqb f1 f2
 | _, _ => false
 end.
+
+(** Properties of uequal *)
+  Proposition uequal_eq (v0 v : Var + FunctionIdentifier):
+    var_funid_eqb v0 v = true <-> v0 = v.
+  Proof.
+    intros. split; intros.
+    { destruct v0, v.
+      * inversion H. apply eqb_eq in H1. subst. reflexivity.
+      * inversion H.
+      * inversion H.
+      * inversion H. destruct f, f0. inversion H1. apply Bool.andb_true_iff in H2. inversion H2.
+        apply eqb_eq in H0. apply Nat.eqb_eq in H3. subst. reflexivity.
+    }
+    { destruct v, v0.
+      * inversion H. subst. simpl. apply eqb_refl.
+      * inversion H.
+      * inversion H.
+      * inversion H. simpl. destruct f. simpl. rewrite eqb_refl, Nat.eqb_refl. simpl. reflexivity.
+    }
+  Qed.
+
+  Proposition uequal_neq (v0 v : Var + FunctionIdentifier):
+    var_funid_eqb v0 v = false <-> v0 <> v.
+  Proof.
+    split; intros.
+    { destruct v0, v.
+      * simpl in *. apply eqb_neq in H. unfold not in *. intros. apply H. inversion H0. reflexivity.
+      * unfold not. intro. inversion H0.
+      * unfold not. intro. inversion H0.
+      * destruct f, f0. simpl in H. Search andb. apply Bool.andb_false_iff in H. inversion H.
+        - apply eqb_neq in H0. unfold not in *. intro. apply H0. inversion H1. reflexivity.
+        - apply Nat.eqb_neq in H0. unfold not in *. intro. apply H0. inversion H1. reflexivity.
+    }
+    { destruct v0, v.
+      * simpl in *. apply eqb_neq. unfold not in *. intro. apply H. subst. reflexivity.
+      * simpl. reflexivity.
+      * simpl. reflexivity.
+      * simpl. destruct f, f0. simpl. apply Bool.andb_false_iff.
+        unfold not in H. case_eq ((s =? s0)%string); intros.
+        - right. apply eqb_eq in H0. apply Nat.eqb_neq. unfold not. intro. apply H. subst. reflexivity.
+        - left. reflexivity.
+    }
+  Qed.
+
+  Proposition uequal_refl (var : Var + FunctionIdentifier) :
+  var_funid_eqb var var = true.
+  Proof.
+    destruct var.
+    * simpl. apply eqb_refl.
+    * destruct f. simpl. rewrite eqb_refl, Nat.eqb_refl. simpl. reflexivity.
+  Qed.
+
+  Proposition uequal_sym (v1 v2 : Var + FunctionIdentifier) :
+    var_funid_eqb v1 v2 = var_funid_eqb v2 v1.
+  Proof.
+    destruct v1, v2.
+    * simpl. rewrite eqb_sym. reflexivity.
+    * simpl. reflexivity.
+    * simpl. reflexivity.
+    * simpl. destruct f, f0. simpl. rewrite eqb_sym, Nat.eqb_sym. reflexivity.
+  Qed.
+
+
+

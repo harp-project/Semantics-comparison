@@ -5,7 +5,7 @@ Import ListNotations.
 (** End of tests *)
 
 Reserved Notation "| env , id , e , eff | -e> | id' , e' , eff' |" (at level 70).
-Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat -> Value + Exception -> SideEffectList -> Prop :=
+CoInductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat -> Value + Exception -> SideEffectList -> Prop :=
 | eval_nil (env : Environment) (eff : SideEffectList) (id : nat):
   |env, id, ENil, eff| -e> |id, inl VNil, eff|
 
@@ -316,6 +316,190 @@ Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat 
 
 where "| env , id , e , eff | -e> | id' , e' , eff' |" := (eval_expr env id e eff id' e' eff')
 .
+
+Open Scope string_scope.
+
+Example div_expr_example : Expression :=
+  ELetRec ("f", 0) [] (ELet "X" (ECall "fwrite" [ELit (Atom "a")]) 
+                         (EApp (EFunId ("f", 0)) []))
+       (EApp (EFunId ("f", 0)) []).
+
+Goal
+  forall id v eff, |[], 0, div_expr_example, []| -e> |id, v, eff|.
+Proof.
+  intros.
+  unfold div_expr_example.
+  eapply eval_letrec; auto. unfold append_funs_to_env. simpl.
+  intros.
+  cofix COINDHYP.
+  inversion COINDHYP. subst. apply eq_sym, length_zero_iff_nil in H4. apply eq_sym, length_zero_iff_nil in H5. inversion H2. apply eq_sym, length_zero_iff_nil in H1.
+  subst. simpl in H7. inversion H7. subst. clear H7. clear H8.
+  eapply eval_app with (vals := []) (eff := []) (ids := []); auto.
+  * apply eval_funid. reflexivity.
+  * auto.
+  * intros. inversion H.
+  * exact H13.
+  * subst. inversion H7. subst. inversion H2.
+  * inversion H1.
+  * subst. apply eq_sym, length_zero_iff_nil in H1. apply eq_sym, length_zero_iff_nil in H2. apply eq_sym, length_zero_iff_nil in H3. subst. inversion H4. inversion H2.
+    subst. pose (H6 [] [(0, ("f", 0),
+        ([], ELet "X" (ECall "fwrite" [ELit (Atom "a")]) (EApp (EFunId ("f", 0)) [])))] [] (ELet "X" (ECall "fwrite" [ELit (Atom "a")]) (EApp (EFunId ("f", 0)) [])) 0). contradiction.
+  * subst. apply eq_sym, length_zero_iff_nil in H1. apply eq_sym, length_zero_iff_nil in H2. apply eq_sym, length_zero_iff_nil in H3. subst. inversion H4. inversion H2.
+    subst. contradiction.
+(* simpl. eapply eval_let.
+    - unfold get_env. simpl. eapply eval_call with (vals := [VLit (Atom "a")]) (ids := [1]) (eff := [[]]); auto.
+      + intros. inversion H. 2: inversion H1. simpl. apply eval_lit.
+      + simpl. reflexivity.
+    - simpl. cofix COINDFIX. *)
+Admitted.
+
+(** Based on Coinductive big-step operational semantics by Leroy and Grall: *)
+CoInductive InfSideEffectList :=
+| ISEList (id : SideEffectId * list Value) (xs : InfSideEffectList).
+
+Infix ":::" := ISEList (at level 60, right associativity).
+
+Fixpoint append_to_inf (t1: SideEffectList) (t2: InfSideEffectList) {struct t1} : InfSideEffectList :=
+match t1 with
+| nil => t2
+| e :: t => e ::: (append_to_inf t t2)
+end.
+
+Notation "a +++ b" := (append_to_inf a b) (at level 55, right associativity).
+
+CoInductive InfSideEffectList_sim: InfSideEffectList -> InfSideEffectList -> Prop :=
+| InfSideEffectList_sim_intro: forall a t1 t2,
+    InfSideEffectList_sim t1 t2 -> InfSideEffectList_sim (a ::: t1) (a ::: t2).
+
+Notation "x == y" := (InfSideEffectList_sim x y) (at level 70, no associativity).
+
+Lemma InfSideEffectList_sim_refl: forall x, x == x.
+Proof.
+  cofix COINDHYP; intro. destruct x. constructor. apply COINDHYP.
+Qed.
+
+Lemma InfSideEffectList_sim_sym: forall x y, x == y -> y == x.
+Proof.
+  cofix COINDHYP; intros. inversion H. constructor. apply COINDHYP; auto.
+Qed.
+
+Lemma InfSideEffectList_sim_trans: forall x y z, x == y -> y == z -> x == z.
+Proof.
+  cofix COINDHYP; intros. inversion H; subst. inversion H0; subst. constructor. apply COINDHYP with t2; auto.
+Qed.
+
+Lemma decompose_InfSideEffectList:
+  forall t, t = match t with ISEList e t' => ISEList e t' end.
+Proof.
+  intro. destruct t; auto.
+Qed.
+
+Ltac dec x := rewrite (decompose_InfSideEffectList x); simpl.
+
+Reserved Notation "| env , id , e , eff | -i>  eff' " (at level 70).
+CoInductive div_expr : Environment -> nat -> Expression -> SideEffectList -> InfSideEffectList -> Prop :=
+(* Tuple *)
+| div_tuple (env: Environment) (exps : list Expression) (vals : list Value) 
+     (eff1 : SideEffectList) (eff : list SideEffectList) (ids : list nat) (id id' : nat) (i : nat) (eff2 eff3 : InfSideEffectList) :
+  i < length exps ->
+  length vals = i ->
+  length eff = i ->
+  length ids = i ->
+  (forall j, j < i ->
+    |env, nth_def ids id 0 j, nth j exps ErrorExp, nth_def eff eff1 [] j|
+   -e>
+    |nth_def ids id 0 (S j), inl (nth j vals ErrorValue), nth_def eff eff1 [] (S j)|) ->
+  eff3 = last eff eff1 +++ eff2 ->
+  |env, last ids id, nth i exps ErrorExp, last eff eff1| -i> eff3
+->
+  |env, id, ETuple exps, eff1| -i> eff3
+
+(* apply *)
+| div_app (params : list Expression) (vals : list Value) (env : Environment) 
+     (exp : Expression) (body : Expression) (var_list : list Var) 
+     (ref : Environment) (ext : list (nat * FunctionIdentifier * FunctionExpression)) (n : nat)
+     (eff1 eff2 : SideEffectList) (eff : list SideEffectList) (ids : list nat) (id id' : nat) (eff3 eff4 : InfSideEffectList):
+  length params = length vals ->
+  |env, id, exp, eff1| -e> |id', inl (VClos ref ext n var_list body), eff2| ->
+  length var_list = length vals
+  ->
+  length params = length eff ->
+  length params = length ids ->
+  (
+    forall i, i < length params ->
+      |env, nth_def ids id' 0 i, nth i params ErrorExp, nth_def eff eff2 [] i|
+     -e>
+      |nth_def ids id' 0 (S i), inl (nth i vals ErrorValue), nth_def eff eff2 [] (S i)|
+  )
+  ->
+  eff4 = last eff eff2 +++ eff3 ->
+  |append_vars_to_env var_list vals (get_env ref ext), 
+   last ids id',
+   body, 
+   last eff eff2|
+  -i>
+   eff4
+->
+  |env, id, EApp exp params, eff1| -i> eff4
+
+(* letrec *)
+| div_letrec (env: Environment) (e b : Expression) (l : list Var) (eff1 : SideEffectList) (eff2 eff3 : InfSideEffectList) (f : FunctionIdentifier) (id : nat) :
+  eff3 = eff1 +++ eff2 ->
+  |append_funs_to_env [(f, (l, b))] env id, S id, e, eff1| -i> eff3
+
+->
+  |env, id, ELetRec f l b e, eff1| -i> eff3
+
+(* let *)
+| div_let (env: Environment) (v : Var) (val : Value) (e1 e2 : Expression)  (eff1 eff' : SideEffectList) (id id' : nat) (eff2 eff3 : InfSideEffectList ) :
+  |env, id, e1, eff1| -e> |id', inl val, eff'| ->
+  eff3 = eff' +++ eff2 ->
+  |append_vars_to_env [v] [val] env, id', e2, eff'| -i> eff3
+->
+  |env, id, ELet v e1 e2, eff1| -i> eff3
+where "| env , id , e , eff | -i>  eff' " := (div_expr env id e eff eff').
+
+Open Scope string_scope.
+
+(* Example div_expr_example : Expression :=
+  ELetRec ("f", 0) [] (ELet "X" (ECall "fwrite" [ELit (Atom "a")]) 
+                         (EApp (EFunId ("f", 0)) []))
+       (EApp (EFunId ("f", 0)) []). *)
+
+(* CoFixpoint inf_trace1 := (Output, [VLit (Atom "a")]) ::: inf_trace1.
+
+Goal
+  |[], 0, div_expr_example, []| -i> inf_trace1.
+Proof.
+  intros. unfold div_expr_example.
+  eapply div_letrec with (eff2 := inf_trace1); auto. unfold append_funs_to_env. simpl.
+  intros.
+  cofix COINDHYP. cofix c.
+  eapply div_app with (vals := []) (eff := []) (ids := []); auto.
+  * apply eval_funid. reflexivity.
+  * auto.
+  * intros. inversion H.
+  * simpl. reflexivity.
+  * simpl. eapply div_let.
+    - unfold get_env. simpl. eapply eval_call with (vals := [VLit (Atom "a")]) (ids := [1]) (eff := [[]]); auto.
+      + intros. inversion H. 2: inversion H1. simpl. apply eval_lit.
+      + simpl. reflexivity.
+    - dec inf_trace1. reflexivity.
+    - simpl. cofix COINDFIX.
+  {
+  eapply div_app with (vals := []) (eff := []) (ids := []); auto.
+  * apply eval_funid. reflexivity.
+  * auto.
+  * intros. inversion H.
+  * simpl. dec inf_trace1. reflexivity.
+  * simpl. eapply div_let.
+    - unfold get_env. simpl. eapply eval_call with (vals := [VLit (Atom "a")]) (ids := [1]) (eff := [[(Output, [VLit (Atom "a")])]]); auto.
+      + intros. inversion H. 2: inversion H1. simpl. apply eval_lit.
+      + simpl. reflexivity.
+    - dec inf_trace1. dec inf_trace1. reflexivity.
+    - simpl. exact COINDFIX.
+  }
+Qed. *)
 
 Section Tactic.
 

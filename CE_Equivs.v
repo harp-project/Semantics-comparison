@@ -563,11 +563,99 @@ Proof.
 Qed.
 
 
+Example eq1 env id e eff clock :
+  eval_fbos_expr env (S id) e eff clock = eval_fbos_expr env id (ELet "X"%string (EFun [] e) (EApp (EVar "X"%string) [])) eff (S (S clock)).
+Proof.
+  destruct clock.
+  * simpl. reflexivity.
+  * simpl eval_fbos_expr at 2. rewrite get_value_here. rewrite nil_length. repeat (fold eval_fbos_expr). reflexivity.
+Qed.
+
+Import List.
+
+Arguments eval : simpl never.
+
+Example eq2 env id eff clock A B e1 e2 v1 v2 eff1 eff2 id1 id2 t:
+  eval_fbos_expr env id e1 eff clock = Result (id + id1) (inl v1) (eff ++ eff1) ->
+  eval_fbos_expr env id e2 eff clock = Result (id + id2) (inl v2) (eff ++ eff2) ->
+  eval_fbos_expr (insert_value env (inl B) v2) (id + id2) e1 (eff ++ eff2) clock = Result (id + id2 + id1) (inl v1) (eff ++ eff2 ++ eff1) ->
+  eval_fbos_expr (insert_value env (inl A) v1) (id + id1) e2 (eff ++ eff1) clock = Result (id + id1 + id2) (inl v2) (eff ++ eff1 ++ eff2) ->
+  A <> B ->
+  eval_fbos_expr env id 
+      (ELet B e2 (ELet A e1
+        (ECall "+"%string [EVar A ; EVar B])))
+      eff (S (S clock)) = Result (id + id2 + id1) (inl t) (eff ++ eff2 ++ eff1)
+<->
+  eval_fbos_expr env id 
+      (ELet A e1 (ELet B e2
+        (ECall "+"%string [EVar A ; EVar B])))
+      eff (S (S clock)) = Result (id + id1 + id2) (inl t) (eff ++ eff1 ++ eff2).
+Proof.
+  intros. remember (S clock) as cl.
+  simpl.
+  pose (C1 := clock_increase _ _ _ _ _ _ _ _ H). rewrite <- Heqcl in C1.
+  rewrite C1.
+  pose (C2 := clock_increase _ _ _ _ _ _ _ _ H0). rewrite <- Heqcl in C2.
+  rewrite C2.
+  rewrite Heqcl in *. simpl.
+  rewrite H1, H2.
+  destruct clock.
+  * simpl. split; discriminate.
+  * simpl. destruct clock.
+    - simpl. split; discriminate.
+    - simpl. rewrite get_value_here, get_value_there, get_value_here.
+      rewrite get_value_here, get_value_there, get_value_here.
+      2-3: congruence.
+      destruct v1, v2.
+      all: try (split; intros; discriminate).
+      all: try (destruct l).
+      all: try (split; intros; discriminate).
+      all: try (destruct l0).
+      all: try (split; intros; discriminate).
+      split; intros; inversion H4; subst; reflexivity.
+Qed.
+
+Example div_expr_example : Expression :=
+  ELetRec ("f", 0) [] (ELet "X" (ECall "fwrite" [ELit (Atom "a")]) 
+                         (EApp (EFunId ("f", 0)) []))
+       (EApp (EFunId ("f", 0)) []).
 
 
+Theorem clock_decrease :
+  forall clock env id exp eff,
+  eval_fbos_expr env id exp eff (S clock) = Timeout
+->
+  eval_fbos_expr env id exp eff clock = Timeout.
+Proof.
+Admitted.
 
 
-
-
-
+Example div :
+  forall clock env id eff, eval_fbos_expr env id div_expr_example eff clock = Timeout.
+Proof.
+  induction clock.
+  * auto.
+  * intros. simpl.
+    unfold append_funs_to_env. simpl.
+    pose (IHclock env id (eff ++ [(Output, [VLit (Atom "a")])])).
+    destruct clock.
+    - auto.
+    - simpl in *.
+      destruct clock.
+      + auto.
+      + simpl. rewrite get_value_here. rewrite nil_length.
+        (* remember (EApp (EFunId ("f", 0)) []) as appl. *)
+        destruct clock.
+        ** auto.
+        ** simpl. destruct clock.
+          -- auto.
+          -- simpl.
+             apply clock_decrease in e.
+             simpl in e. unfold append_funs_to_env in e. simpl in e.
+             rewrite get_value_here in e.
+             rewrite nil_length in e.
+             unfold get_env. simpl.
+             rewrite get_value_there, get_value_here. 2: congruence. rewrite nil_length.
+             exact e.
+Qed.
 

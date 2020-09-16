@@ -153,3 +153,30 @@ Proof.
     - auto.
     - simpl. auto.
 Qed.
+
+Proposition get_value_here (env : Environment) (var : Var + FunctionIdentifier) (val : Value):
+get_value (insert_value env var val) var = inl val.
+Proof.
+  induction env.
+  * simpl. rewrite uequal_refl. reflexivity.
+  * simpl. destruct a. case_eq (var_funid_eqb s var); intro.
+    - simpl. rewrite uequal_refl. reflexivity.
+    - simpl. rewrite uequal_sym, H. assumption.
+Qed.
+
+(** Previous append result *)
+Proposition get_value_there (env : Environment) (var var' : Var + FunctionIdentifier) 
+     (val : Value):
+var <> var' ->
+get_value (insert_value env var val) var' = get_value env var'.
+Proof.
+  intro. induction env.
+  * simpl. apply uequal_neq in H. rewrite uequal_sym in H. rewrite H. reflexivity.
+  * simpl. destruct a. case_eq (var_funid_eqb s var); intro.
+    - apply uequal_eq in H0. assert (var <> var'). auto. rewrite <- H0 in H.
+      apply uequal_neq in H. rewrite uequal_sym in H. rewrite H. simpl. apply uequal_neq in H1.
+      rewrite uequal_sym in H1. rewrite H1. reflexivity.
+    - simpl. case_eq (var_funid_eqb var' s); intros.
+      + reflexivity.
+      + apply IHenv.
+Qed.
