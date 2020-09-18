@@ -5,7 +5,7 @@ Import ListNotations.
 (** End of tests *)
 
 Reserved Notation "| env , id , e , eff | -e> | id' , e' , eff' |" (at level 70).
-CoInductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat -> Value + Exception -> SideEffectList -> Prop :=
+Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat -> Value + Exception -> SideEffectList -> Prop :=
 | eval_nil (env : Environment) (eff : SideEffectList) (id : nat):
   |env, id, ENil, eff| -e> |id, inl VNil, eff|
 
@@ -324,35 +324,6 @@ Example div_expr_example : Expression :=
                          (EApp (EFunId ("f", 0)) []))
        (EApp (EFunId ("f", 0)) []).
 
-Goal
-  forall id v eff, |[], 0, div_expr_example, []| -e> |id, v, eff|.
-Proof.
-  intros.
-  unfold div_expr_example.
-  eapply eval_letrec; auto. unfold append_funs_to_env. simpl.
-  intros.
-  cofix COINDHYP.
-  inversion COINDHYP. subst. apply eq_sym, length_zero_iff_nil in H4. apply eq_sym, length_zero_iff_nil in H5. inversion H2. apply eq_sym, length_zero_iff_nil in H1.
-  subst. simpl in H7. inversion H7. subst. clear H7. clear H8.
-  eapply eval_app with (vals := []) (eff := []) (ids := []); auto.
-  * apply eval_funid. reflexivity.
-  * auto.
-  * intros. inversion H.
-  * exact H13.
-  * subst. inversion H7. subst. inversion H2.
-  * inversion H1.
-  * subst. apply eq_sym, length_zero_iff_nil in H1. apply eq_sym, length_zero_iff_nil in H2. apply eq_sym, length_zero_iff_nil in H3. subst. inversion H4. inversion H2.
-    subst. pose (H6 [] [(0, ("f", 0),
-        ([], ELet "X" (ECall "fwrite" [ELit (Atom "a")]) (EApp (EFunId ("f", 0)) [])))] [] (ELet "X" (ECall "fwrite" [ELit (Atom "a")]) (EApp (EFunId ("f", 0)) [])) 0). contradiction.
-  * subst. apply eq_sym, length_zero_iff_nil in H1. apply eq_sym, length_zero_iff_nil in H2. apply eq_sym, length_zero_iff_nil in H3. subst. inversion H4. inversion H2.
-    subst. contradiction.
-(* simpl. eapply eval_let.
-    - unfold get_env. simpl. eapply eval_call with (vals := [VLit (Atom "a")]) (ids := [1]) (eff := [[]]); auto.
-      + intros. inversion H. 2: inversion H1. simpl. apply eval_lit.
-      + simpl. reflexivity.
-    - simpl. cofix COINDFIX. *)
-Admitted.
-
 (** Based on Coinductive big-step operational semantics by Leroy and Grall: *)
 CoInductive InfSideEffectList :=
 | ISEList (id : SideEffectId * list Value) (xs : InfSideEffectList).
@@ -388,10 +359,23 @@ Proof.
   cofix COINDHYP; intros. inversion H; subst. inversion H0; subst. constructor. apply COINDHYP with t2; auto.
 Qed.
 
+Import List.
+
+Lemma InfSideEffectList_app_assoc: forall (t1 t2 : SideEffectList) t3, (t1 ++ t2) +++ t3 = t1 +++ (t2 +++ t3).
+Proof.
+  induction t1; simpl; intros. auto. rewrite IHt1. auto.
+Qed.
+
 Lemma decompose_InfSideEffectList:
   forall t, t = match t with ISEList e t' => ISEList e t' end.
 Proof.
   intro. destruct t; auto.
+Qed.
+
+Theorem inf_deconstruct e l :
+  e:::l = [e] +++ l.
+Proof.
+  simpl. reflexivity.
 Qed.
 
 Ltac dec x := rewrite (decompose_InfSideEffectList x); simpl.
@@ -459,47 +443,81 @@ CoInductive div_expr : Environment -> nat -> Expression -> SideEffectList -> Inf
   |env, id, ELet v e1 e2, eff1| -i> eff3
 where "| env , id , e , eff | -i>  eff' " := (div_expr env id e eff eff').
 
-Open Scope string_scope.
+CoFixpoint inf_trace1 := (Output, [VLit (Atom "a")]) ::: inf_trace1.
 
-(* Example div_expr_example : Expression :=
-  ELetRec ("f", 0) [] (ELet "X" (ECall "fwrite" [ELit (Atom "a")]) 
-                         (EApp (EFunId ("f", 0)) []))
-       (EApp (EFunId ("f", 0)) []). *)
-
-(* CoFixpoint inf_trace1 := (Output, [VLit (Atom "a")]) ::: inf_trace1.
+Lemma alma eff:
+| [], 0,
+   ELetRec ("f", 0) []
+     (ELet "X" (ECall "fwrite" [ELit (Atom "a")]) (EApp (EFunId ("f", 0)) []))
+     (EApp (EFunId ("f", 0)) []), eff ++ [(Output, [VLit (Atom "a")])] | -i>
+   (eff ++ [(Output, [VLit (Atom "a")])]) +++ inf_trace1
+   ->
+   | [(inr ("f", 0),
+   VClos []
+     [(0, ("f", 0),
+      ([], ELet "X" (ECall "fwrite" [ELit (Atom "a")]) (EApp (EFunId ("f", 0)) [])))] 0 []
+     (ELet "X" (ECall "fwrite" [ELit (Atom "a")]) (EApp (EFunId ("f", 0)) [])));
+  (inl "X", ok)], 1, EApp (EFunId ("f", 0)) [],
+(eff ++ [(Output, [VLit (Atom "a")])]) ++ [(Output, [VLit (Atom "a")])] | -i>
+(eff ++ [(Output, [VLit (Atom "a")])]) +++ inf_trace1.
+Proof.
+  intros.
+  inversion H. subst. unfold append_funs_to_env in H9. simpl in H9.
+  inversion H9. subst. apply eq_sym, length_zero_iff_nil in H2. apply eq_sym, length_zero_iff_nil in H5.  apply eq_sym, length_zero_iff_nil in H6. subst.
+  inversion H3. simpl in H5. inversion H5. subst. clear H5.
+  inversion H15. subst. inversion H10. subst.
+  pose (element_exist _ _ H2).
+  pose (element_exist _ _ H5).
+  pose (element_exist _ _ H6).
+  inversion e. inversion e0. inversion e1.
+  inversion H0. inversion H1. inversion H13. subst.
+  clear e. clear e0. clear e1.
+  inversion H2. inversion H5. inversion H6.
+  apply eq_sym, length_zero_iff_nil in H19. apply eq_sym, length_zero_iff_nil in H20.
+  apply eq_sym, length_zero_iff_nil in H21. subst.
+  pose (H11 0 Nat.lt_0_1). simpl in e. inversion e.
+  subst.
+  simpl in H16. inversion H18. subst.
+  exact H16.
+Qed.
 
 Goal
-  |[], 0, div_expr_example, []| -i> inf_trace1.
+  forall eff, | [], 0, div_expr_example, eff| -i> eff +++ inf_trace1.
 Proof.
-  intros. unfold div_expr_example.
+  cofix INDFIX.
+  intros. unfold div_expr_example in *.
   eapply div_letrec with (eff2 := inf_trace1); auto. unfold append_funs_to_env. simpl.
   intros.
-  cofix COINDHYP. cofix c.
   eapply div_app with (vals := []) (eff := []) (ids := []); auto.
   * apply eval_funid. reflexivity.
   * auto.
   * intros. inversion H.
   * simpl. reflexivity.
   * simpl. eapply div_let.
-    - unfold get_env. simpl. eapply eval_call with (vals := [VLit (Atom "a")]) (ids := [1]) (eff := [[]]); auto.
+    - unfold get_env. simpl. eapply eval_call with (vals := [VLit (Atom "a")]) (ids := [1]) (eff := [eff]); auto.
       + intros. inversion H. 2: inversion H1. simpl. apply eval_lit.
       + simpl. reflexivity.
-    - dec inf_trace1. reflexivity.
-    - simpl. cofix COINDFIX.
+    - dec inf_trace1. rewrite inf_deconstruct. instantiate (1 := inf_trace1).
+      rewrite InfSideEffectList_app_assoc. reflexivity.
+    - simpl.
+      pose (INDFIX (eff ++ [(Output, [VLit (Atom "a")])])).
   {
   eapply div_app with (vals := []) (eff := []) (ids := []); auto.
   * apply eval_funid. reflexivity.
   * auto.
   * intros. inversion H.
-  * simpl. dec inf_trace1. reflexivity.
+  * simpl. dec inf_trace1. rewrite inf_deconstruct. rewrite InfSideEffectList_app_assoc. reflexivity.
   * simpl. eapply div_let.
-    - unfold get_env. simpl. eapply eval_call with (vals := [VLit (Atom "a")]) (ids := [1]) (eff := [[(Output, [VLit (Atom "a")])]]); auto.
-      + intros. inversion H. 2: inversion H1. simpl. apply eval_lit.
+    - unfold get_env. simpl. eapply eval_call with (vals := [VLit (Atom "a")]) (ids := [1]) (eff := [eff ++ [(Output, [VLit (Atom "a")])]]); auto.
+      + intros. inversion H. 2: inversion H1. apply eval_lit.
       + simpl. reflexivity.
-    - dec inf_trace1. dec inf_trace1. reflexivity.
-    - simpl. exact COINDFIX.
+    - dec inf_trace1. dec inf_trace1. rewrite inf_deconstruct. 
+      instantiate (1 := inf_trace1).
+      repeat (rewrite InfSideEffectList_app_assoc). reflexivity.
+    - simpl. dec inf_trace1. rewrite inf_deconstruct. rewrite <- InfSideEffectList_app_assoc.
+      apply alma. assumption.
   }
-Qed. *)
+Qed.
 
 Section Tactic.
 

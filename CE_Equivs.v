@@ -14,19 +14,19 @@ forall P : Expression -> Prop,
        (forall (vl : list Var) (e : Expression), P e -> P (EFun vl e)) ->
        (forall hd : Expression, P hd -> forall tl : Expression, P tl -> P (ECons hd tl)) ->
        (forall l : list Expression, 
-         (forall i : nat, i < length l -> P (nth i l ENil)) ->
+         (forall i : nat, i < length l -> P (nth i l ErrorExp)) ->
        P (ETuple l)) ->
        (forall (f6 : string) (l : list Expression), 
-         (forall i : nat, i < length l -> P (nth i l ENil)) ->
+         (forall i : nat, i < length l -> P (nth i l ErrorExp)) ->
        P (ECall f6 l)) ->
        (forall exp : Expression, P exp -> 
         forall l : list Expression,
-         (forall i : nat, i < length l -> P (nth i l ENil)) ->
+         (forall i : nat, i < length l -> P (nth i l ErrorExp)) ->
         P (EApp exp l)) ->
        (forall e : Expression,
         P e -> forall l : list (Pattern * Expression * Expression), 
-          (forall i : nat, i < length l -> P (snd (fst (nth i l (PNil, ENil, ENil))))) ->
-          (forall i : nat, i < length l -> P (snd (nth i l (PNil, ENil, ENil)))) ->
+          (forall i : nat, i < length l -> P (snd (fst (nth i l (PNil, ErrorExp, ErrorExp))))) ->
+          (forall i : nat, i < length l -> P (snd (nth i l (PNil, ErrorExp, ErrorExp)))) ->
         P (ECase e l)) ->
        (forall (v : Var) (e1 : Expression),
         P e1 -> forall e2 : Expression, P e2 -> P (ELet v e1 e2)) ->
@@ -275,17 +275,17 @@ Theorem restrict env l a :
     i < Datatypes.length (a :: l) ->
     forall (id : nat) (eff : SideEffectList) (id' : nat) (res : Value + Exception)
       (eff' : SideEffectList),
-    | env, id, nth i (a :: l) ENil, eff | -e> | id', res, eff' | ->
+    | env, id, nth i (a :: l) ErrorExp, eff | -e> | id', res, eff' | ->
     exists clock : nat,
-      eval_fbos_expr env id (nth i (a :: l) ENil) eff clock = Result id' res eff')
+      eval_fbos_expr env id (nth i (a :: l) ErrorExp) eff clock = Result id' res eff')
 ->
 forall i : nat,
     i < Datatypes.length l ->
     forall (id : nat) (eff : SideEffectList) (id' : nat) (res : Value + Exception)
       (eff' : SideEffectList),
-    | env, id, nth i l ENil, eff | -e> | id', res, eff' | ->
+    | env, id, nth i l ErrorExp, eff | -e> | id', res, eff' | ->
     exists clock : nat,
-      eval_fbos_expr env id (nth i l ENil) eff clock = Result id' res eff'.
+      eval_fbos_expr env id (nth i l ErrorExp) eff clock = Result id' res eff'.
 Proof.
   intros.
   assert (S i < Datatypes.length (a :: l)) as A1.
@@ -384,8 +384,8 @@ Theorem list_sound :
     i < Datatypes.length l ->
     forall (id : nat) (eff : SideEffectList) (id' : nat) (res : Value + Exception)
       (eff' : SideEffectList),
-    | env, id, nth i l ENil, eff | -e> | id', res, eff' | ->
-    exists clock : nat, eval_fbos_expr env id (nth i l ENil) eff clock = Result id' res eff')
+    | env, id, nth i l ErrorExp, eff | -e> | id', res, eff' | ->
+    exists clock : nat, eval_fbos_expr env id (nth i l ErrorExp) eff clock = Result id' res eff')
 ->
 (forall i : nat,
      i < Datatypes.length l ->
@@ -448,8 +448,8 @@ Theorem list_exception_sound :
     i < Datatypes.length l ->
     forall (id : nat) (eff : SideEffectList) (id' : nat) (res : Value + Exception)
       (eff' : SideEffectList),
-    | env, id, nth i l ENil, eff | -e> | id', res, eff' | ->
-    exists clock : nat, eval_fbos_expr env id (nth i l ENil) eff clock = Result id' res eff')
+    | env, id, nth i l ErrorExp, eff | -e> | id', res, eff' | ->
+    exists clock : nat, eval_fbos_expr env id (nth i l ErrorExp) eff clock = Result id' res eff')
 ->
 (forall j : nat,
      j < Datatypes.length vals ->
@@ -543,12 +543,204 @@ Proof.
 
 Admitted.
 
+Lemma list_length_equal :
+forall env l id eff id' vl eff' clock,
+(fix eval_list
+          (env : Environment) (id : nat) (exps : list Expression) 
+          (eff : SideEffectList) {struct exps} : ResultListType :=
+          match exps with
+          | [] => LResult id (inl []) eff
+          | x0 :: xs =>
+              match eval_fbos_expr env id x0 eff clock with
+              | Result id' (inl v) eff' =>
+                  match eval_list env id' xs eff' with
+                  | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
+                  | LResult id'' (inr _) _ => eval_list env id' xs eff'
+                  | _ => eval_list env id' xs eff'
+                  end
+              | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
+              | Timeout => LTimeout
+              | Failure => LFailure
+              end
+          end) env id l eff = LResult id' (inl vl) eff'
+-> length l = length vl.
+Proof.
+  induction l; intros.
+  * simpl. intros. inversion H. reflexivity.
+  * intros. destruct (eval_fbos_expr env id a eff clock).
+    - destruct res; simpl in *.
+      + case_eq ((fix eval_list
+         (env : Environment) (id : nat) (exps : list Expression) 
+         (eff : SideEffectList) {struct exps} : ResultListType :=
+         match exps with
+         | [] => LResult id (inl []) eff
+         | x0 :: xs =>
+             match eval_fbos_expr env id x0 eff clock with
+             | Result id' (inl v) eff' =>
+                 match eval_list env id' xs eff' with
+                 | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
+                 | LResult id'' (inr _) _ => eval_list env id' xs eff'
+                 | _ => eval_list env id' xs eff'
+                 end
+             | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
+             | Timeout => LTimeout
+             | Failure => LFailure
+             end
+         end) env id0 l eff0); intros.
+         ** destruct res.
+           -- rewrite H0 in H. inversion H. simpl. apply eq_S.
+              eapply IHl. apply H0.
+           -- rewrite H0 in H. discriminate.
+         ** rewrite H0 in H. discriminate.
+         ** rewrite H0 in H. discriminate.
+      + discriminate.
+    - discriminate.
+    - discriminate.
+Qed.
+
+Lemma list_correct :
+forall l env id eff id' vl eff' clock,
+(fix eval_list
+          (env : Environment) (id : nat) (exps : list Expression) 
+          (eff : SideEffectList) {struct exps} : ResultListType :=
+          match exps with
+          | [] => LResult id (inl []) eff
+          | x0 :: xs =>
+              match eval_fbos_expr env id x0 eff clock with
+              | Result id' (inl v) eff' =>
+                  match eval_list env id' xs eff' with
+                  | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
+                  | LResult id'' (inr _) _ => eval_list env id' xs eff'
+                  | _ => eval_list env id' xs eff'
+                  end
+              | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
+              | Timeout => LTimeout
+              | Failure => LFailure
+              end
+          end) env id l eff = LResult id' (inl vl) eff'
+(* ->
+  length l = length vl *)
+->
+(
+exists idl effl, 
+  length l = length idl /\
+  length l = length effl /\
+  eff' = last effl eff /\
+  id' = last idl id /\
+  (forall i, i < length l ->
+    eval_fbos_expr env (nth_def idl id 0 i) (nth i l ErrorExp) (nth_def effl eff [] i) clock =
+      Result (nth_def idl id 0 (S i)) (inl (nth i vl ErrorValue)) (nth_def effl eff [] (S i))
+  )
+)
+.
+Proof.
+  induction l; intros.
+  * inversion H. subst. exists []. exists [].
+    repeat (split; auto).
+    intros. inversion H0.
+  * case_eq (eval_fbos_expr env id a eff clock); intros. destruct res.
+    - rewrite H0 in H. case_eq ((fix eval_list
+         (env : Environment) (id : nat) (exps : list Expression) 
+         (eff : SideEffectList) {struct exps} : ResultListType :=
+         match exps with
+         | [] => LResult id (inl []) eff
+         | x0 :: xs =>
+             match eval_fbos_expr env id x0 eff clock with
+             | Result id' (inl v) eff' =>
+                 match eval_list env id' xs eff' with
+                 | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
+                 | LResult id'' (inr _) _ => eval_list env id' xs eff'
+                 | _ => eval_list env id' xs eff'
+                 end
+             | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
+             | Timeout => LTimeout
+             | Failure => LFailure
+             end
+         end) env id0 l eff0); intros. destruct res.
+         + rewrite H1 in H. inversion H. subst.
+           pose (IHl _ _ _ _ _ _ _ H1). inversion e. inversion H2.
+           destruct H3, H4, H5, H6.
+           exists (id0 :: x). exists (eff0 :: x0).
+           split. 2: split. 3: split. 4: split.
+           1-2 : simpl; lia.
+           ** rewrite last_element_equal with (def2 := eff) in H5. auto.
+           ** rewrite last_element_equal with (def2 := id) in H6. auto.
+           ** intros. destruct i.
+             -- simpl. assumption.
+             -- simpl in H8. 
+                (* setoid failure for simple rewrite *)
+                assert (i < length l). { lia. }
+                apply H7. assumption.
+         + rewrite H1 in H. discriminate.
+         + rewrite H1 in H. discriminate.
+         + rewrite H1 in H. discriminate.
+    - rewrite H0 in H. discriminate.
+    - rewrite H0 in H. discriminate.
+    - rewrite H0 in H. discriminate.
+Qed.
+
 Theorem fbos_correct :
-  forall env id exp eff id' res eff',
+  forall exp env id eff id' res eff',
   (exists clock, eval_fbos_expr env id exp eff clock = Result id' res eff')
 ->
   | env, id, exp, eff | -e> |id', res, eff'|.
 Proof.
+  intro. induction exp using Expression_ind_2; intros.
+  * inversion H. destruct x; inversion H0.
+    apply eval_nil.
+  * inversion H. destruct x; inversion H0.
+    apply eval_lit.
+  * inversion H. destruct x; inversion H0.
+    apply eval_var. auto.
+  * inversion H. destruct x; inversion H0.
+    apply eval_funid. auto.
+  * inversion H. destruct x; inversion H0.
+    apply eval_fun.
+  * inversion H. destruct x; inversion H0.
+    case_eq (eval_fbos_expr env id exp2 eff x); intros. destruct res0; subst.
+    - case_eq (eval_fbos_expr env id0 exp1 eff0 x); intros. destruct res0; subst.
+      + rewrite H1, H3 in H2. inversion H2. subst. eapply eval_cons.
+        ** apply IHexp2. eexists. exact H1.
+        ** apply IHexp1. eexists. exact H3.
+      + rewrite H1, H3 in H2. inversion H2. subst. eapply eval_cons_hd_ex.
+        ** apply IHexp2. eexists. exact H1.
+        ** apply IHexp1. eexists. exact H3.
+      + rewrite H1, H3 in H2. discriminate.
+      + rewrite H1, H3 in H2. discriminate.
+    - rewrite H1 in H2. inversion H2. subst. eapply eval_cons_tl_ex.
+      apply IHexp2. eexists. exact H1.
+    - rewrite H1 in H2. discriminate.
+    - rewrite H1 in H2. discriminate.
+  * inversion H0. destruct x; inversion H1.
+    case_eq ((fix eval_list
+          (env : Environment) (id : nat) (exps : list Expression) 
+          (eff : SideEffectList) {struct exps} : ResultListType :=
+          match exps with
+          | [] => LResult id (inl []) eff
+          | x0 :: xs =>
+              match eval_fbos_expr env id x0 eff x with
+              | Result id' (inl v) eff' =>
+                  match eval_list env id' xs eff' with
+                  | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
+                  | LResult id'' (inr _) _ => eval_list env id' xs eff'
+                  | _ => eval_list env id' xs eff'
+                  end
+              | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
+              | Timeout => LTimeout
+              | Failure => LFailure
+              end
+          end) env id l eff); intros; subst.
+    - destruct res0.
+      + rewrite H2 in H3. inversion H3. subst. remember H2 as e1. clear Heqe1. apply list_correct in H2.
+        inversion H2. inversion H4. destruct H5. destruct H6.
+        eapply eval_tuple.
+        ** apply list_length_equal in e1. assumption.
+        ** exact H6.
+        ** exact H5.
+        ** intros. apply H. assumption. eexists. apply H7. assumption.
+        ** apply H7.
+        ** apply H7.
+     + 
 Admitted.
 
 
