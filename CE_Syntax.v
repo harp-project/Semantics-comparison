@@ -38,7 +38,7 @@ Inductive Expression : Type :=
 | ECall   (f : string) (l : list Expression)
 (** For function applications: *)
 | EApp    (exp: Expression)     (l : list Expression)
-| ECase   (e : Expression) (l : list (Pattern * Expression * Expression))
+(* | ECase   (e : Expression) (l : list (Pattern * Expression * Expression)) *)
 | ELet    (v : Var) (e1 e2 : Expression)
 | ELetRec (f : FunctionIdentifier) (l : list Var) (b : Expression) (e : Expression)
 | ETry    (e1 : Expression) (v1 : Var) (e2 : Expression) (vl2 : list Var) (e2 : Expression).

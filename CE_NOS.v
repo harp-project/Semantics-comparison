@@ -55,7 +55,7 @@ Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat 
 ->
   |env, id, ECons hd tl, eff1| -e> |id'', inl (VCons hdv tlv), eff3|
 
-(* case evaluation rules *)
+(* (* case evaluation rules *)
 | eval_case (env: Environment) (guard exp: Expression) (e : Expression) (val : Value) (res : Value + Exception) (l : list (Pattern * Expression * Expression)) (bindings: list (Var * Value)) (i : nat) (eff1 eff2 eff3 : SideEffectList) (id id' id'' : nat) :
   |env, id, e, eff1| -e> |id', inl val, eff2| ->
   i < length l ->
@@ -70,7 +70,7 @@ Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat 
   |add_bindings bindings env, id', guard, eff2| -e> |id', inl ttrue, eff2| -> 
   |add_bindings bindings env, id', exp, eff2| -e> |id'', res, eff3|
 ->
-  |env, id, ECase e l, eff1| -e> |id'', res, eff3|
+  |env, id, ECase e l, eff1| -e> |id'', res, eff3| *)
 
 
 (* call evaluation rule *)
@@ -317,6 +317,8 @@ Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat 
 where "| env , id , e , eff | -e> | id' , e' , eff' |" := (eval_expr env id e eff id' e' eff')
 .
 
+Check eval_expr_ind.
+
 Open Scope string_scope.
 
 Example div_expr_example : Expression :=
@@ -481,7 +483,7 @@ Proof.
   exact H16.
 Qed.
 
-Goal
+(* Goal
   forall eff, | [], 0, div_expr_example, eff| -i> eff +++ inf_trace1.
 Proof.
   cofix INDFIX.
@@ -796,4 +798,4 @@ Proof.
   end. solve. simpl. solve.
 Qed.
 
-End Tactic.
+End Tactic. *)

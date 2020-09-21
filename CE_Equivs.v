@@ -516,9 +516,12 @@ Theorem fbos_sound :
 ->
   (exists clock, eval_fbos_expr env id exp eff clock = Result id' res eff').
 Proof.
-  intro. intro. intro. generalize dependent id. induction exp using Expression_ind_2; intros.
-  1-5: exists 1; simpl; inversion H; auto; rewrite H3; auto.
-  * inversion H; subst.
+  intro. intro. intros. induction H. (* induction exp using Expression_ind_2; *) intros.
+  (* 1-5: exists 1; simpl; inversion H; auto; rewrite H3; auto. *)
+  1-5 :admit.
+  * pose (list_sound _ _ _ _ _ _ _ H3).
+  
+  inversion H; subst.
     - pose (IHexp2 _ _ _ _ _ H4).
       pose (IHexp1 _ _ _ _ _ H9).
       inversion e. inversion e0.
