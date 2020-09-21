@@ -19,11 +19,11 @@ match e with
  | EVar v => 1
  | EFunId f => 1
  | EFun vl e => 1
- | ECons hd tl => 1 + exp_size hd + exp_size tl
- | ETuple l => 1 + list_sum (map exp_size l)
+(*  | ECons hd tl => 1 + exp_size hd + exp_size tl *)
+(*  | ETuple l => 1 + list_sum (map exp_size l) *)
  | ECall f l => 1 + list_sum (map exp_size l)
  | EApp exp l => 1 + list_sum (map exp_size l) + exp_size exp
- | ECase e l => 1 + exp_size e + fold_right (fun '(a, b, c) r => r + exp_size b + exp_size c) 0 l
+(*  | ECase e l => 1 + exp_size e + fold_right (fun '(a, b, c) r => r + exp_size b + exp_size c) 0 l *)
  | ELet v e1 e2 => 1 + exp_size e1 + exp_size e2
  | ELetRec f l b e => 1 + exp_size e
  | ETry e1 v1 e2 vl2 e3 => 1 + exp_size e1 + exp_size e2 + exp_size e3
@@ -87,7 +87,7 @@ match clock with
    | EVar v => Result id (get_value env (inl v)) eff
    | EFunId f => Result id (get_value env (inr f)) eff
    | EFun vl e => Result (S id) (inl (VClos env [] id vl e)) eff
-   | ECons hd tl =>
+  (*  | ECons hd tl =>
      match eval_fbos_expr env id tl eff clock' with
      | Result id' (inl tlv) eff' =>
        match eval_fbos_expr env id' hd eff' clock' with
@@ -95,8 +95,8 @@ match clock with
        | r => r
        end
      | r => r
-     end
-   | ETuple l => 
+     end *)
+(*    | ETuple l => 
    let res := 
       (fix eval_list env id exps eff : ResultListType := 
                  match exps with
@@ -121,7 +121,7 @@ match clock with
          | LResult id' (inr ex) eff' => Result id' (inr ex) eff'
          | LFailure => Failure
          | LTimeout => Timeout
-         end
+         end *)
    | ECall f l => let res := 
              (fix eval_list env id exps eff : ResultListType := 
                  match exps with
@@ -183,7 +183,7 @@ match clock with
          end
        | r => r
    end
-  | ECase e l =>
+(*   | ECase e l =>
       match eval_fbos_expr env id e eff clock' with
       | Result id' (inl v) eff' =>
        (fix clause_eval l i' :=
@@ -211,7 +211,7 @@ match clock with
          end
        ) l (length l)
      | r => r
-     end
+     end *)
    | ELet var e1 e2 => 
       match eval_fbos_expr env id e1 eff clock' with
       | Result id' (inl v) eff' => eval_fbos_expr (append_vars_to_env [var] [v] env) id' e2 eff' clock'

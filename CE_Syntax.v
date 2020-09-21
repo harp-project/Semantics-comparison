@@ -19,11 +19,11 @@ Inductive Literal : Type :=
 Inductive Pattern : Type :=
 | PVar     (v : Var)
 | PLit (l : Literal)
-| PCons  (hd tl : Pattern)
-| PTuple (l : list Pattern)
+(* | PCons  (hd tl : Pattern)
+| PTuple (l : list Pattern) *)
 | PNil.
 
-Definition PEmptyTuple : Pattern := PTuple [].
+(* Definition PEmptyTuple : Pattern := PTuple []. *)
 
 Definition FunctionIdentifier : Type := string * nat.
 
@@ -33,8 +33,8 @@ Inductive Expression : Type :=
 | EVar    (v : Var)
 | EFunId  (f : FunctionIdentifier)
 | EFun    (vl : list Var) (e : Expression)
-| ECons   (hd tl : Expression)
-| ETuple  (l : list Expression)
+(* | ECons   (hd tl : Expression) *)
+(* | ETuple  (l : list Expression) *)
 | ECall   (f : string) (l : list Expression)
 (** For function applications: *)
 | EApp    (exp: Expression)     (l : list Expression)
@@ -56,11 +56,11 @@ Inductive Value : Type :=
            (id : nat)
            (vl : list Var)
            (e : Expression)
-| VCons    (vhd vtl : Value)
-| VTuple   (vl : list Value).
+(* | VCons    (vhd vtl : Value)
+| VTuple   (vl : list Value) *).
 
 (** Helper definitions *)
-Definition VEmptyTuple : Value := VTuple [].
+(* Definition VEmptyTuple : Value := VTuple []. *)
 
 Definition ErrorValue : Value := (VLit (Atom "error"%string)).
 Definition ErrorExp : Expression := (ELit (Atom "error"%string)).
@@ -111,12 +111,12 @@ Fixpoint Pattern_eqb (p1 p2 : Pattern) {struct p1} : bool :=
 match p1, p2 with
 | PVar v1, PVar v2 => eqb v1 v2
 | PLit l1, PLit l2 => Literal_eqb l1 l2
-| PCons hd tl, PCons hd' tl' => Pattern_eqb hd hd' && Pattern_eqb tl tl'
+(* | PCons hd tl, PCons hd' tl' => Pattern_eqb hd hd' && Pattern_eqb tl tl'
 | PTuple l, PTuple l' => (fix blist_eq l l' := match l, l' with
                                      | [], [] => true
                                      | x::xs, x'::xs' => andb (Pattern_eqb x x') (blist_eq xs xs')
                                      | _, _ => false
-                                     end) l l'
+                                     end) l l' *)
 | PNil, PNil => true
 | _, _ => false
 end.
@@ -126,11 +126,11 @@ match e1, e2 with
 | VNil, VNil => true
 | VLit l, VLit l' => Literal_eqb l l'
 | VClos env ext id p b, VClos env' ext' id' p' b' => Nat.eqb id id'
-| VCons hd tl, VCons hd' tl' => Value_eqb hd hd' && Value_eqb tl tl'
+(* | VCons hd tl, VCons hd' tl' => Value_eqb hd hd' && Value_eqb tl tl'
 | VTuple l, VTuple l' => (fix blist l l' := match l, l' with
                                            | [], [] => true
                                            | x::xs, x'::xs' => andb (Value_eqb x x') (blist xs xs')
                                            | _, _ => false
-                                           end) l l'
+                                           end) l l' *)
 | _, _ => false
 end.

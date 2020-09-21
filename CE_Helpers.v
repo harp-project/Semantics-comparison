@@ -88,7 +88,7 @@ match p with
   | VLit l' => match_literals l l'
   | _ => false
   end
-| PCons hd tl => match e with
+(* | PCons hd tl => match e with
   | VCons hd' tl' => (match_value_to_pattern hd' hd) && (match_value_to_pattern tl' tl)
   | _ => false
   end
@@ -102,7 +102,7 @@ match p with
                                                 (match_elements vs ps)
                      end) exps l
   | _ => false
-  end
+  end *)
 end
 .
 
@@ -110,24 +110,21 @@ end
 Compute match_value_to_pattern (VClos [] [] 0 [] (ErrorExp)) (PVar "X"%string).
 Compute match_value_to_pattern (VLit (Atom "a"%string)) (PVar "X"%string).
 Compute match_value_to_pattern (VLit (Atom "a"%string)) (PLit (Atom "a"%string)).
-Compute match_value_to_pattern (VLit (Atom "a"%string)) (PEmptyTuple).
-Compute match_value_to_pattern (VTuple [VLit (Atom "a"%string) ; VLit (Integer 1)]) 
-                               (PVar "X"%string).
-Compute match_value_to_pattern (VTuple [VLit (Atom "a"%string) ; VLit (Integer 1)]) 
-                               (PTuple [PVar "X"%string ; PLit (Integer 1)]).
-
-(** Used variables in a pattern *)
+(* Compute match_value_to_pattern (VLit (Atom "a"%string)) (PEmptyTuple).mpute match_value_to_pattern (VTuple [VLit (Atom "a"%string) ; VLit (Integer 1)]) 
+                               (PVar "X"%string). *)
+(* Compute match_value_to_pattern (VTuple [VLit (Atom "a"%string) ; VLit (Integer 1)]) 
+                               (PTuple [PVar "X"%string ; PLit (Integer 1)]).** Used variables in a pattern *)
 Fixpoint variable_occurances (p : Pattern) : list Var :=
 match p with
  | PNil => []
  | PVar v => [v]
  | PLit l => []
- | PCons hd tl => variable_occurances hd ++ variable_occurances tl
+(*  | PCons hd tl => variable_occurances hd ++ variable_occurances tl
  | PTuple l => (fix variable_occurances_list l :=
                    match l with
                    | [] => []
                    | pat::ps => variable_occurances pat ++ variable_occurances_list ps
-                   end) l
+                   end) l *)
 end.
 
 (** Used variables in a pattern, but now with sets *)
@@ -136,13 +133,13 @@ match p with
  | PNil => []
  | PVar v => [v]
  | PLit l => []
- | PCons hd tl => set_union string_dec (variable_occurances_set hd) (variable_occurances_set tl)
+(*  | PCons hd tl => set_union string_dec (variable_occurances_set hd) (variable_occurances_set tl)
  | PTuple l => (fix variable_occurances_set_list t :=
                     match t with
                     | [] => []
                     | pat::ps => set_union string_dec (variable_occurances_set pat) 
                                                       (variable_occurances_set_list ps)
-                    end) l
+                    end) l *)
 end.
 
 
@@ -160,7 +157,7 @@ match p with
   | VLit l' => if match_literals l l' then [] else [] (* Error *)
   | _ => [] (** error *)
   end
-| PCons hd tl => match e with
+(* | PCons hd tl => match e with
   | VCons hd' tl' => (match_value_bind_pattern hd' hd) ++ (match_value_bind_pattern tl' tl)
   | _ => [] (** error *)
   end
@@ -179,7 +176,7 @@ match p with
                           end 
                         end) exps pl
   | _ => []
-  end
+  end *)
 end
 .
 
@@ -187,15 +184,15 @@ end
 Compute match_value_bind_pattern (VClos [] [] 0 [] (ErrorExp)) (PVar "X"%string).
 Compute match_value_bind_pattern (VLit (Atom "a"%string)) (PVar "X"%string).
 Compute match_value_bind_pattern (VLit (Atom "a"%string)) (PLit (Atom "alma"%string)).
-Compute match_value_bind_pattern (VLit (Atom "a"%string)) (PEmptyTuple).
-Compute match_value_bind_pattern (VTuple [VLit (Atom "a"%string) ; VLit (Integer 1)]) 
+(* Compute match_value_bind_pattern (VLit (Atom "a"%string)) (PEmptyTuple). *)
+(* Compute match_value_bind_pattern (VTuple [VLit (Atom "a"%string) ; VLit (Integer 1)]) 
                                  (PVar "X"%string).
 Compute match_value_to_pattern (VTuple [VLit (Atom "a"%string) ; 
                                         VLit (Integer 1); VLit (Integer 2)]) 
                                (PTuple [PVar "X"%string ; PVar "Y"%string]).
 Compute match_value_bind_pattern (VTuple [VLit (Atom "a"%string) ; VLit (Integer 1); 
                                           VLit (Integer 2)]) 
-                                 (PTuple [PVar "X"%string ; PVar "Y"%string]).
+                                 (PTuple [PVar "X"%string ; PVar "Y"%string]). *)
 
 (** From the list of patterns, guards and bodies, this function decides if a value matches the ith clause *)
 Fixpoint match_clause (e : Value) (l : list (Pattern * Expression * Expression)) (i : nat) : option (Expression * Expression * list (Var * Value)) :=
@@ -217,8 +214,8 @@ match ps, gs, bs with
 end. *)
 
 (* Examples *)
-Compute variable_occurances (PTuple [PVar "X"%string ; PVar "X"%string]).
-Compute variable_occurances_set (PTuple [PVar "X"%string ; PVar "X"%string]).
+(* Compute variable_occurances (PTuple [PVar "X"%string ; PVar "X"%string]).
+Compute variable_occurances_set (PTuple [PVar "X"%string ; PVar "X"%string]). *)
 
 (** Get the used variables of an expression *)
 Fixpoint variables (e : Expression) : list Var :=
@@ -228,11 +225,11 @@ match e with
   | EVar v => [v]
   | EFunId f => []
   | EFun vl e => variables e
-  | ECons hd tl => app (variables hd) (variables tl)
-  | ETuple l => flat_map variables l
+(*   | ECons hd tl => app (variables hd) (variables tl)
+  | ETuple l => flat_map variables l *)
   | ECall f l => flat_map variables l
   | EApp exp l => app (variables exp) (flat_map variables l)
-  | ECase e l => variables e ++ fold_right (fun '(a, b, c) r => app (app (variables b) (variables c)) r) [] l
+(*   | ECase e l => variables e ++ fold_right (fun '(a, b, c) r => app (app (variables b) (variables c)) r) [] l *)
   | ELet v e1 e2 => [v] ++ (variables e1) ++ (variables e2)
   | ELetRec f l b e => variables e
   | ETry e1 v1 e2 vl2 e3 => [v1] ++ vl2 ++ variables e1 ++ variables e2 ++ variables e3

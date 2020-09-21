@@ -12,10 +12,6 @@ forall P : Expression -> Prop,
        (forall v : Var, P (EVar v)) ->
        (forall f2 : FunctionIdentifier, P (EFunId f2)) ->
        (forall (vl : list Var) (e : Expression), P e -> P (EFun vl e)) ->
-       (forall hd : Expression, P hd -> forall tl : Expression, P tl -> P (ECons hd tl)) ->
-       (forall l : list Expression, 
-         (forall i : nat, i < length l -> P (nth i l ErrorExp)) ->
-       P (ETuple l)) ->
        (forall (f6 : string) (l : list Expression), 
          (forall i : nat, i < length l -> P (nth i l ErrorExp)) ->
        P (ECall f6 l)) ->
@@ -23,11 +19,6 @@ forall P : Expression -> Prop,
         forall l : list Expression,
          (forall i : nat, i < length l -> P (nth i l ErrorExp)) ->
         P (EApp exp l)) ->
-       (forall e : Expression,
-        P e -> forall l : list (Pattern * Expression * Expression), 
-          (forall i : nat, i < length l -> P (snd (fst (nth i l (PNil, ErrorExp, ErrorExp))))) ->
-          (forall i : nat, i < length l -> P (snd (nth i l (PNil, ErrorExp, ErrorExp)))) ->
-        P (ECase e l)) ->
        (forall (v : Var) (e1 : Expression),
         P e1 -> forall e2 : Expression, P e2 -> P (ELet v e1 e2)) ->
        (forall (f10 : FunctionIdentifier) (l : list Var) (b : Expression),
@@ -153,26 +144,6 @@ Proof.
     - simpl in *. inversion H. auto.
     - simpl in *. inversion H. auto.
     - simpl in *. inversion H. auto.
-    - simpl in H. case_eq (eval_fbos_expr env id exp2 eff clock); intros.
-      + case_eq res0; intros; subst.
-        ** rewrite H0 in H. pose (IHclock _ _ _ _ _ _ _ H0).
-           case_eq (eval_fbos_expr env id0 exp1 eff0 clock); intros.
-           -- case_eq res0; intros; subst.
-             ++ rewrite H1 in H. pose (IHclock _ _ _ _ _ _ _ H1).
-                remember (S clock) as cl. simpl.
-                rewrite e. rewrite e0.
-                auto.
-             ++ rewrite H1 in H. pose (IHclock _ _ _ _ _ _ _ H1).
-                remember (S clock) as cl. simpl.
-                rewrite e. rewrite e1.
-                auto.
-          -- rewrite H1 in H. discriminate.
-          -- rewrite H1 in H. discriminate.
-        ** rewrite H0 in H. pose (IHclock _ _ _ _ _ _ _ H0).
-           remember (S clock) as cl. simpl. rewrite e0.
-           auto.
-      + rewrite H0 in H. discriminate.
-      + rewrite H0 in H. discriminate.
     - simpl in H. 
     remember ((fix eval_list
           (env : Environment) (id : nat) (exps : list Expression) 
@@ -214,48 +185,6 @@ Proof.
     pose (clock_list_increase _ _ _ _ _ _ _ _ IHclock Heqresult). rewrite e in H0.
     clear e. clear Heqresult.
     remember (S clock) as cl. simpl. rewrite H0. assumption.
-    - simpl in H. 
-    remember ((fix eval_list
-          (env : Environment) (id : nat) (exps : list Expression) 
-          (eff : SideEffectList) {struct exps} : ResultListType :=
-          match exps with
-          | nil => LResult id (inl nil) eff
-          | x :: xs =>
-              match eval_fbos_expr env id x eff clock with
-              | Result id' (inl v) eff' =>
-                  match eval_list env id' xs eff' with
-                  | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
-                  | LResult id'' (inr _) _ => eval_list env id' xs eff'
-                  | _ => eval_list env id' xs eff'
-                  end
-              | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
-              | Timeout => LTimeout
-              | Failure => LFailure
-              end
-          end) env id l eff) as result.
-    destruct result. 2-3: discriminate. symmetry in Heqresult.
-    assert ((fix eval_list
-               (env : Environment) (id : nat) (exps : list Expression) 
-               (eff : SideEffectList) {struct exps} : ResultListType :=
-               match exps with
-               | nil => LResult id (inl nil) eff
-               | x :: xs =>
-                   match eval_fbos_expr env id x eff clock with
-                   | Result id' (inl v) eff' =>
-                       match eval_list env id' xs eff' with
-                       | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
-                       | LResult id'' (inr _) _ => eval_list env id' xs eff'
-                       | _ => eval_list env id' xs eff'
-                       end
-                   | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
-                   | Timeout => LTimeout
-                   | Failure => LFailure
-                   end
-               end) env id l eff = LResult id0 res0 eff0). { auto. }
-    pose (clock_list_increase _ _ _ _ _ _ _ _ IHclock Heqresult). rewrite e in H0.
-    clear e. clear Heqresult.
-    remember (S clock) as cl. simpl. rewrite H0. assumption.
-    -
 Admitted.
 
 Theorem bigger_clock :
@@ -519,7 +448,7 @@ Proof.
   intro. intro. intros. induction H. (* induction exp using Expression_ind_2; *) intros.
   (* 1-5: exists 1; simpl; inversion H; auto; rewrite H3; auto. *)
   1-5 :admit.
-  * pose (list_sound _ _ _ _ _ _ _ H3).
+  * (* pose (list_sound _ _ _ _ _ _ _ H3).
   
   inversion H; subst.
     - pose (IHexp2 _ _ _ _ _ H4).
@@ -542,7 +471,7 @@ Proof.
     - pose (list_sound _ _ _ _ _ _ _ H H5 H2 H4 H3). inversion e.
       exists (S x). simpl. rewrite H1. auto.
     - pose (list_exception_sound _ _ _ _ _ _ _ _ _ _ H H6 H9 H2 H5 H4).
-      inversion e. exists (S x). simpl. rewrite H1. auto.
+      inversion e. exists (S x). simpl. rewrite H1. auto. *)
 
 Admitted.
 
@@ -699,21 +628,6 @@ Proof.
     apply eval_funid. auto.
   * inversion H. destruct x; inversion H0.
     apply eval_fun.
-  * inversion H. destruct x; inversion H0.
-    case_eq (eval_fbos_expr env id exp2 eff x); intros. destruct res0; subst.
-    - case_eq (eval_fbos_expr env id0 exp1 eff0 x); intros. destruct res0; subst.
-      + rewrite H1, H3 in H2. inversion H2. subst. eapply eval_cons.
-        ** apply IHexp2. eexists. exact H1.
-        ** apply IHexp1. eexists. exact H3.
-      + rewrite H1, H3 in H2. inversion H2. subst. eapply eval_cons_hd_ex.
-        ** apply IHexp2. eexists. exact H1.
-        ** apply IHexp1. eexists. exact H3.
-      + rewrite H1, H3 in H2. discriminate.
-      + rewrite H1, H3 in H2. discriminate.
-    - rewrite H1 in H2. inversion H2. subst. eapply eval_cons_tl_ex.
-      apply IHexp2. eexists. exact H1.
-    - rewrite H1 in H2. discriminate.
-    - rewrite H1 in H2. discriminate.
   * inversion H0. destruct x; inversion H1.
     case_eq ((fix eval_list
           (env : Environment) (id : nat) (exps : list Expression) 
@@ -734,14 +648,15 @@ Proof.
               end
           end) env id l eff); intros; subst.
     - destruct res0.
-      + rewrite H2 in H3. inversion H3. subst. remember H2 as e1. clear Heqe1. apply list_correct in H2.
+      + rewrite H2 in H3. remember (eval f6 l0 eff0) as result.
+        destruct (result). inversion H3. subst. remember H2 as e1. clear Heqe1. apply list_correct in H2.
         inversion H2. inversion H4. destruct H5. destruct H6.
-        eapply eval_tuple.
-        ** apply list_length_equal in e1. assumption.
+        eapply eval_call.
+        ** apply list_length_equal in e1. exact e1.
         ** exact H6.
         ** exact H5.
         ** intros. apply H. assumption. eexists. apply H7. assumption.
-        ** apply H7.
+        ** symmetry. inversion H7. rewrite <- H8. apply Heqresult.
         ** apply H7.
      + 
 Admitted.

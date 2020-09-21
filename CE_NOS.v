@@ -30,7 +30,7 @@ Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat 
 | eval_fun (env : Environment) (vl : list Var) (e : Expression) (eff : SideEffectList) (id : nat):
   |env, id, EFun vl e, eff| -e> |S id, inl (VClos env [] id vl e), eff|
 
-(* tuple evaluation rule *)
+(* (* tuple evaluation rule *)
 | eval_tuple (env: Environment) (exps : list Expression) (vals : list Value) 
      (eff1 eff2 : SideEffectList) (eff : list SideEffectList) (ids : list nat) (id id' : nat) :
   length exps = length vals ->
@@ -45,15 +45,15 @@ Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat 
   eff2 = last eff eff1 ->
   id' = last ids id (* if length = 0, then last id = first id *)
 ->
-  |env, id, ETuple exps, eff1| -e> |id' , inl (VTuple vals), eff2|
+  |env, id, ETuple exps, eff1| -e> |id' , inl (VTuple vals), eff2| *)
 
 (* list evaluation rule *)
-| eval_cons (env:Environment) (hd tl: Expression) (hdv tlv : Value) 
+(* | eval_cons (env:Environment) (hd tl: Expression) (hdv tlv : Value) 
      (eff1 eff2 eff3 : SideEffectList) (id id' id'' : nat) :
   |env, id, tl, eff1| -e> |id', inl tlv, eff2| ->
   |env, id', hd, eff2| -e> | id'', inl hdv, eff3|
 ->
-  |env, id, ECons hd tl, eff1| -e> |id'', inl (VCons hdv tlv), eff3|
+  |env, id, ECons hd tl, eff1| -e> |id'', inl (VCons hdv tlv), eff3| *)
 
 (* (* case evaluation rules *)
 | eval_case (env: Environment) (guard exp: Expression) (e : Expression) (val : Value) (res : Value + Exception) (l : list (Pattern * Expression * Expression)) (bindings: list (Var * Value)) (i : nat) (eff1 eff2 eff3 : SideEffectList) (id id' id'' : nat) :
@@ -137,7 +137,7 @@ Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat 
 
   (* EXCEPTIONS *)
 (* list tail exception *)
-| eval_cons_tl_ex (env: Environment) (hd tl : Expression) (ex : Exception) 
+(* | eval_cons_tl_ex (env: Environment) (hd tl : Expression) (ex : Exception) 
       (eff1 eff2 : SideEffectList) (id id' : nat) :
   |env, id, tl, eff1| -e> |id', inr ex, eff2|
 ->
@@ -166,7 +166,7 @@ Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat 
     |nth_def ids id 0 (S j), inl (nth j vals ErrorValue), nth_def eff eff1 [] (S j)|) ->
   |env, last ids id, nth i exps ErrorExp, last eff eff1| -e> |id', inr ex, eff2|
 ->
-  |env, id, ETuple exps, eff1| -e> |id', inr ex, eff2|
+  |env, id, ETuple exps, eff1| -e> |id', inr ex, eff2| *)
 
 
 (* try 2x *)
@@ -187,7 +187,7 @@ Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat 
   |env, id, ETry e1 v1 e2 vl2 e3, eff1| -e> |id'', res, eff3|
 
 
-(* case 2x *)
+(* (* case 2x *)
 (** Pattern matching exception *)
 | eval_case_pat_ex (env: Environment) (e : Expression) (ex : Exception) (l : list (Pattern * Expression * Expression)) (eff1 eff2 : SideEffectList) (id id' : nat):
   |env, id, e, eff1| -e> |id', inr ex, eff2|
@@ -209,7 +209,7 @@ Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat 
 ->
   |env, id, ECase e l, eff1| -e> | id', inr (if_clause), eff2|
 (** ith guard exception -> guards cannot result in exception, i.e. this rule is not needed *)
-
+ *)
 
 (* call 1x *)
 | eval_call_ex (env: Environment) (i : nat) (fname : string) (params : list Expression) 
@@ -385,7 +385,7 @@ Ltac dec x := rewrite (decompose_InfSideEffectList x); simpl.
 Reserved Notation "| env , id , e , eff | -i>  eff' " (at level 70).
 CoInductive div_expr : Environment -> nat -> Expression -> SideEffectList -> InfSideEffectList -> Prop :=
 (* Tuple *)
-| div_tuple (env: Environment) (exps : list Expression) (vals : list Value) 
+(* | div_tuple (env: Environment) (exps : list Expression) (vals : list Value) 
      (eff1 : SideEffectList) (eff : list SideEffectList) (ids : list nat) (id id' : nat) (i : nat) (eff2 eff3 : InfSideEffectList) :
   i < length exps ->
   length vals = i ->
@@ -398,7 +398,7 @@ CoInductive div_expr : Environment -> nat -> Expression -> SideEffectList -> Inf
   eff3 = last eff eff1 +++ eff2 ->
   |env, last ids id, nth i exps ErrorExp, last eff eff1| -i> eff3
 ->
-  |env, id, ETuple exps, eff1| -i> eff3
+  |env, id, ETuple exps, eff1| -i> eff3 *)
 
 (* apply *)
 | div_app (params : list Expression) (vals : list Value) (env : Environment) 

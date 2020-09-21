@@ -7,25 +7,25 @@ Definition eval_arith (fname : string) (params : list Value) :  Value + Exceptio
 match fname, params with
 (** addition *)
 | "+"%string, [VLit (Integer a); VLit (Integer b)] => inl (VLit (Integer (a + b)))
-| "+"%string, [a; b]                               => inr (badarith (VCons a b))
+| "+"%string, [a; b]                               => inr (badarith (b))
 (** subtraction *)
 | "-"%string, [VLit (Integer a); VLit (Integer b)] => inl (VLit (Integer (a - b)))
-| "-"%string, [a; b]                               => inr (badarith (VCons a b))
+| "-"%string, [a; b]                               => inr (badarith (b))
 (** unary minus *)
 | "-"%string, [VLit (Integer a)]                   => inl (VLit (Integer (0 - a)))
 | "-"%string, [a]                                  => inr (badarith a)
 (** multiplication *)
 | "*"%string, [VLit (Integer a); VLit (Integer b)] => inl (VLit (Integer (a * b)))
-| "*"%string, [a; b]                               => inr (badarith (VCons a b))
+| "*"%string, [a; b]                               => inr (badarith (b))
 (** division *)
 | "/"%string, [VLit (Integer a); VLit (Integer b)] => inl (VLit (Integer (a / b)))
-| "/"%string, [a; b]                               => inr (badarith (VCons a b))
+| "/"%string, [a; b]                               => inr (badarith (b))
 (** rem *)
 | "rem"%string, [VLit (Integer a); VLit (Integer b)] => inl (VLit (Integer (Z.rem a b)))
-| "rem"%string, [a; b]                               => inr (badarith (VCons a b))
+| "rem"%string, [a; b]                               => inr (badarith (b))
 (** div *)
 | "div"%string, [VLit (Integer a); VLit (Integer b)] => inl (VLit (Integer (Z.div a b)))
-| "div"%string, [a; b]                               => inr (badarith (VCons a b))
+| "div"%string, [a; b]                               => inr (badarith (b))
 (** anything else *)
 | _         , _                                    => inr (undef (VLit (Atom fname)))
 end.
@@ -37,12 +37,12 @@ match fname, length params, params with
 (** writing *)
 | "fwrite"%string, 1, _ => (inl ok                                    , eff ++ [(Output, params)] )
 (** reading *)
-| "fread"%string , 2, e => (inl (VTuple [ok; nth 1 params ErrorValue]), eff ++ [(Input,  params)])
+| "fread"%string , 2, e => (inl (nth 1 params ErrorValue), eff ++ [(Input,  params)])
 (** anything else *)
 | _              , _, _ => (inr (undef (VLit (Atom fname)))           , eff)
 end.
 
-Definition transform_tuple (v : Value) : Value + Exception :=
+(* Definition transform_tuple (v : Value) : Value + Exception :=
 match v with
 | VTuple l => inl ((fix unfold_list l :=
                    match l with
@@ -142,7 +142,7 @@ match fname, params with
     end
 | "setelement"%string, [v1; v2; v3] => inr (badarg (VCons v1 (VCons v2 v3)))
 | _, _ => inr (undef (VLit (Atom fname)))
-end.
+end. *)
 
 (* TODO: Always can be extended, this function simulates inter-module calls *)
 Definition eval (fname : string) (params : list Value) (eff : SideEffectList) 
@@ -153,12 +153,12 @@ match fname with
 | "rem"%string    | "div"%string   => (eval_arith fname params, eff)
 | "fwrite"%string | "fread"%string => eval_io fname params eff
 | "tuple_to_list"%string
-| "list_to_tuple"%string           => (eval_list_tuple fname params, eff)
+(* | "list_to_tuple"%string           => (eval_list_tuple fname params, eff)
 | "length"%string                  => (eval_length params, eff)
 | "tuple_size"%string              => (eval_tuple_size params, eff)
 | "hd"%string     | "tl"%string    => (eval_hd_tl fname params, eff)
 | "element"%string
-| "setelement"%string              => (eval_elem_tuple fname params, eff)
+| "setelement"%string              => (eval_elem_tuple fname params, eff) *)
 (** anything else *)
 | _                                => (inr (undef (VLit (Atom fname))), eff)
 end.
