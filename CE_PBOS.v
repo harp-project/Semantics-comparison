@@ -5,8 +5,13 @@ Import ListNotations.
 Inductive AuxExpression : Type :=
 | AExp (e : Expression)
 | AApp1 (b : Value + Exception) (params : list Expression)
-| AApp2 (v : Value) (rest : list Expression) (b : list Value + Exception)
-| AApp3 (v : Value) (vals : list Value).
+| AApp2 (v : Value) (b : list Value + Exception)
+| ALet (x : Var) (b : Value + Exception) (e : Expression)
+| ACall (f : string) (b : list Value + Exception)
+| ATry (b : Value + Exception) (v : Var) (e2 : Expression) (vl : list Var) (e3 : Expression).
+
+Inductive AuxList : Type :=
+| AList (rest : list Expression) (b : list Value + Exception).
 
 
 Definition mk_result (res : Value + Exception) (vl : list Value) : list Value + Exception :=
@@ -17,109 +22,147 @@ end.
 
 
 Reserved Notation "| env , id , e , eff | -a> | id' , e' , eff' |" (at level 70).
-Reserved Notation "| env , id , e , eff | -e> | id' , e' , eff' |" (at level 70).
+Reserved Notation "| env , id , e , eff | -p> | id' , e' , eff' |" (at level 70).
+Reserved Notation "| env , id , e , eff | -l> | id' , e' , eff' |" (at level 70).
 Inductive eval_aux : Environment -> nat -> AuxExpression -> SideEffectList -> nat -> Value + Exception -> SideEffectList -> Prop :=
 
-| eval_app1_exc env id ex eff params:
+| peval_app1_exc env id ex eff params:
   |env, id, AApp1 (inr ex) params, eff | -a> |id, inr ex, eff|
 
-| eval_app1_fin env id id' v eff eff' params res:
-  |env, id, AApp2 v params (inl []), eff| -a> |id', res, eff'|
+| peval_app1_fin env id id' id'' v eff eff' eff'' params res res':
+  |env, id, AList params (inl []), eff| -l> |id', res, eff'| ->
+  |env, id', AApp2 v res, eff | -a> |id'', res', eff'' |
 ->
-  |env, id, AApp1 (inl v) params, eff | -a> |id', res, eff'|
+  |env, id, AApp1 (inl v) params, eff | -a> |id'', res', eff''|
 
-| eval_app2_fin env id id' v vals eff eff' res:
-  |env, id, AApp3 v vals, eff| -a> |id', res, eff'|
-->
-  |env, id, AApp2 v [] (inl vals), eff| -a> |id', res, eff'|
-
-| eval_app2_exc env id eff v rest ex :
-  |env, id, AApp2 v rest (inr ex), eff| -a> |id, inr ex, eff|
-
-| eval_app2 env id id' id'' eff eff' eff'' v r rest vals res1 res2:
-  |env, id, r, eff| -e> |id', res1, eff'| ->
-  |env, id', AApp2 v rest (mk_result res1 vals), eff'| -a> |id'', res2, eff''|
-->
-  |env, id, AApp2 v (r::rest) (inl vals), eff| -a> |id'', res2, eff''|
-
-| eval_app3 env id id' eff eff' var_list vals ref ext body nid res:
+| peval_app2_fin env id id' vals eff eff' res ref ext nid var_list body:
   length var_list = length vals ->
-  |append_vars_to_env var_list vals (get_env ref ext), id, body, eff| -e> |id', res, eff'|
+  |append_vars_to_env var_list vals (get_env ref ext), id, body, eff| -p> |id', res, eff'|
 ->
-  | env, id, AApp3 (VClos ref ext nid var_list body) vals, eff | -a> |id', res, eff'|
+  |env, id, AApp2 (VClos ref ext nid var_list body) (inl vals), eff| -a> |id', res, eff'|
 
-| eval_app3_exc1 env id id' eff eff' vals v res:
+| peval_app2_exc1 env id id' eff eff' vals v res:
   (forall ref ext var_list body n, v <> VClos ref ext n var_list body)
 ->
-  | env, id, AApp3 v vals, eff | -a> |id', res, eff'|
+  |env, id, AApp2 v (inl vals), eff| -a> |id', res, eff'|
 
-| eval_app3_exc2 env id id' eff eff' var_list vals ref ext body nid :
+| peval_app2_exc2 env id id' eff eff' var_list vals ref ext body nid :
   length var_list <> length vals
 ->
-  | env, id, AApp3 (VClos ref ext nid var_list body) vals, eff | -a> |id', inr (badarity (VClos ref ext nid var_list body)), eff'|
+  | env, id, AApp2 (VClos ref ext nid var_list body) (inl vals), eff | -a> |id', inr (badarity (VClos ref ext nid var_list body)), eff'|
+
+| peval_app2_exc env id eff v ex :
+  |env, id, AApp2 v (inr ex), eff| -a> |id, inr ex, eff|
+
+| peval_let_exc env id v ex e2 eff:
+  | env, id, ALet v (inr ex) e2, eff | -a> | id, inr ex, eff |
+
+| peval_let_fin env var v e2 eff id id' eff' res:
+  | append_vars_to_env [var] [v] env, id, e2, eff| -p> | id', res, eff' |
+->
+  | env, id, ALet var (inl v) e2, eff | -a> | id', res, eff' |
+
+| peval_call_fin env id f vals eff eff' res:
+  eval f vals eff' = (res, eff')
+->
+  | env, id, ACall f (inl vals), eff | -a> | id, res, eff' |
+
+| peval_call_exc env id f eff ex:
+  | env, id, ACall f (inr ex), eff | -a> | id, inr ex, eff |
+
+| peval_try1_fin env id id' eff eff' v v1 e2 e3 varl res:
+  |append_vars_to_env [v1] [v] env, id, e2, eff | -p> | id', res, eff'|
+->
+  | env, id, ATry (inl v) v1 e2 varl e3, eff | -a> | id', res, eff'|
+
+| peval_try1_exc env id id' eff eff' ex v1 e2 e3 varl res:
+  |append_try_vars_to_env varl [exclass_to_value (fst (fst ex)); snd (fst ex); snd ex] env, id, e3, eff|
+ -p>
+  |id', res, eff'|
+->
+  | env, id, ATry (inr ex) v1 e2 varl e3, eff | -a> | id', res, eff'|
 
 where "| env , id , e , eff | -a> | id' , e' , eff' |" := (eval_aux env id e eff id' e' eff')
 with eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat -> Value + Exception -> SideEffectList -> Prop :=
-| eval_nil (env : Environment) (eff : SideEffectList) (id : nat):
-  |env, id, ENil, eff| -e> |id, inl VNil, eff|
+| peval_nil (env : Environment) (eff : SideEffectList) (id : nat):
+  |env, id, ENil, eff| -p> |id, inl VNil, eff|
 
 (* literal evaluation rule *)
-| eval_lit (env : Environment) (l : Literal) (eff : SideEffectList) (id : nat):
-  |env, id, ELit l, eff| -e> |id, inl (VLit l), eff|
+| peval_lit (env : Environment) (l : Literal) (eff : SideEffectList) (id : nat):
+  |env, id, ELit l, eff| -p> |id, inl (VLit l), eff|
 
 (* variable evaluation rule *)
-| eval_var (env:Environment) (s: Var) (eff : SideEffectList) (id : nat) (res : Value + Exception) :
+| peval_var (env:Environment) (s: Var) (eff : SideEffectList) (id : nat) (res : Value + Exception) :
   res = get_value env (inl s)
 ->
-  |env, id, EVar s, eff| -e> |id, res, eff|
+  |env, id, EVar s, eff| -p> |id, res, eff|
 
 (* Function Identifier evaluation rule *)
-| eval_funid (env:Environment) (fid : FunctionIdentifier) (eff : SideEffectList) 
+| peval_funid (env:Environment) (fid : FunctionIdentifier) (eff : SideEffectList) 
     (res : Value + Exception) (id : nat):
   res = get_value env (inr fid)
 ->
-  |env, id, EFunId fid, eff| -e> |id, res, eff|
+  |env, id, EFunId fid, eff| -p> |id, res, eff|
 
 (* Function evaluation *)
-| eval_fun (env : Environment) (vl : list Var) (e : Expression) (eff : SideEffectList) (id : nat):
-  |env, id, EFun vl e, eff| -e> |S id, inl (VClos env [] id vl e), eff|
+| peval_fun (env : Environment) (vl : list Var) (e : Expression) (eff : SideEffectList) (id : nat):
+  |env, id, EFun vl e, eff| -p> |S id, inl (VClos env [] id vl e), eff|
 
-(* Let : TODO this rule is not "pretty" *)
-| eval_let (env: Environment) (v : Var) (val : Value) (e1 e2 : Expression) (res : Value + Exception) (eff1 eff' eff'' : SideEffectList) (id id' id'' : nat) :
-  |env, id, e1, eff1| -e> |id', inl val, eff'| ->
-  |append_vars_to_env [v] [val] env, id', e2, eff'| -e> |id'', res, eff''|
+| peval_let (env: Environment) (v : Var) (res : Value + Exception) (e1 e2 : Expression) (b : Value + Exception) (eff1 eff' eff'' : SideEffectList) (id id' id'' : nat) :
+  |env, id, e1, eff1| -p> |id', b, eff'| ->
+  |env, id', ALet v b e2 , eff'| -a> |id'', res, eff''|
 ->
-  |env, id, ELet v e1 e2, eff1| -e> |id'', res, eff''|
+  |env, id, ELet v e1 e2, eff1| -p> |id'', res, eff''|
 
-| eval_app env id id' id'' eff eff' eff'' exp params b res:
-  |env, id, exp, eff| -e> |id', b, eff'|
+| peval_app env id id' id'' eff eff' eff'' exp params b res:
+  |env, id, exp, eff| -p> |id', b, eff'|
   ->
   |env, id', AApp1 b params, eff'| -a> |id'', res, eff''|
 ->
-  | env, id, EApp exp params, eff | -e> |id', res, eff'|
+  | env, id, EApp exp params, eff | -p> |id', res, eff'|
 
-where "| env , id , e , eff | -e> | id' , e' , eff' |" := (eval_expr env id e eff id' e' eff')
+(* call *)
+| peval_call env id id' id'' eff eff' eff'' res res' f params:
+  | env, id, AList params (inl []), eff | -l> | id', res, eff' | ->
+  | env, id', ACall f res, eff' | -a> | id'', res', eff'' |
+->
+  | env, id, ECall f params, eff | -p> | id'', res', eff'' |
+
+(* try *)
+| peval_try env id id' id'' eff eff' eff'' e1 v1 e2 e3 vlist res res':
+  | env, id, e1, eff | -p> |id', res, eff'| ->
+  | env, id', ATry res v1 e2 vlist e3, eff' | -a> |id'', res', eff''|
+->
+  | env, id, ETry e1 v1 e2 vlist e3, eff | -p> | id'', res' , eff'' |
+
+(* letrec *)
+| peval_letrec (env: Environment) (e b : Expression)  (l : list Var) (res : Value + Exception) (eff1 eff2 : SideEffectList) (f : FunctionIdentifier) (id id' : nat) :
+  (
+     |append_funs_to_env [(f, (l, b))] env id, S id, e, eff1| -p> | id', res, eff2|
+  )
+->
+  |env, id, ELetRec f l b e, eff1| -p> | id', res, eff2|
+
+where "| env , id , e , eff | -p> | id' , e' , eff' |" := (eval_expr env id e eff id' e' eff')
+with eval_list : Environment -> nat -> AuxList -> SideEffectList -> nat -> list Value + Exception -> SideEffectList -> Prop :=
+
+(* | peval_app2 env id id' id'' eff eff' eff'' v r rest vals res1 res2:
+  |env, id, r, eff| -p> |id', res1, eff'| ->
+  |env, id', AApp2 v rest (mk_result res1 vals), eff'| -a> |id'', res2, eff''|
+->
+  |env, id, AApp2 v (r::rest) (inl vals), eff| -a> |id'', res2, eff''| *)
+
+| peval_empty env id eff vals :
+  | env, id, AList [] (inl vals), eff | -l> | id, inl vals, eff|
+
+| peval_list env id id' id'' eff eff' eff'' r rest vals res res':
+  | env, id, r, eff | -p> |id', res, eff'| ->
+  |env, id', AList rest (mk_result res vals), eff' | -l> | id'', res', eff''|
+->
+  | env, id, AList (r::rest) (inl vals), eff | -l> | id, res', eff|
+
+| peval_exc env id eff rest ex:
+  | env, id, AList rest (inr ex), eff | -l> | id, inr ex, eff|
+
+where "| env , id , e , eff | -l> | id' , e' , eff' |" := (eval_list env id e eff id' e' eff')
 .
-
-Open Scope string_scope.
-
-Goal
-  | [], 0, ELet "X" (EFun ["Y"; "Z"] (EVar "Y")) (EApp (EVar "X") [ELit (Atom "a"); ELit (Atom "b")]), []|
--e>
-  | 1, inl (VLit (Atom "a")), []|
-.
-Proof.
-  eapply eval_let.
-  * eapply eval_fun.
-  * simpl. eapply eval_app.
-    - eapply eval_var. reflexivity.
-    - simpl. apply eval_app1_fin.
-      + eapply eval_app2.
-        ** apply eval_lit.
-        ** eapply eval_app2.
-          -- apply eval_lit.
-          -- apply eval_app2_fin.
-            ++ apply eval_app3.
-              *** reflexivity.
-              *** apply eval_var. reflexivity.
-Qed.

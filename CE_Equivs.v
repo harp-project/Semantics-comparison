@@ -1,5 +1,6 @@
 Require Export CE_FBOS.
 Require Export CE_NOS.
+Require Export CE_PBOS.
 
 Require Import Coq.Logic.FunctionalExtensionality.
 
@@ -185,7 +186,84 @@ Proof.
     pose (clock_list_increase _ _ _ _ _ _ _ _ IHclock Heqresult). rewrite e in H0.
     clear e. clear Heqresult.
     remember (S clock) as cl. simpl. rewrite H0. assumption.
-Admitted.
+  - simpl in H. case_eq (eval_fbos_expr env id exp eff clock); intros. destruct res0.
+    + rewrite H0 in H. remember ((fix eval_list
+         (env : Environment) (id : nat) (exps : list Expression) (eff : SideEffectList)
+         {struct exps} : ResultListType :=
+         match exps with
+         | [] => LResult id (inl []) eff
+         | x :: xs =>
+             match eval_fbos_expr env id x eff clock with
+             | Result id' (inl v) eff' =>
+                 match eval_list env id' xs eff' with
+                 | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
+                 | LResult id'' (inr _) _ => eval_list env id' xs eff'
+                 | _ => eval_list env id' xs eff'
+                 end
+             | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
+             | Timeout => LTimeout
+             | Failure => LFailure
+             end
+         end) env id l eff) as result.
+         destruct result. 2-3: discriminate. symmetry in Heqresult.
+         remember (S clock) as cl. simpl. apply IHclock in H0. rewrite H0.
+         rewrite Heqcl in IHclock.
+         pose (clock_list_increase _ _ _ _ _ _ _ _ IHclock Heqresult).
+         assert ((fix eval_list
+               (env : Environment) (id : nat) (exps : list Expression) 
+               (eff : SideEffectList) {struct exps} : ResultListType :=
+               match exps with
+               | [] => LResult id (inl []) eff
+               | x :: xs =>
+                   match eval_fbos_expr env id x eff clock with
+                   | Result id' (inl v) eff' =>
+                       match eval_list env id' xs eff' with
+                       | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
+                       | LResult id'' (inr _) _ => eval_list env id' xs eff'
+                       | _ => eval_list env id' xs eff'
+                       end
+                   | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
+                   | Timeout => LTimeout
+                   | Failure => LFailure
+                   end
+               end) env id l eff = LResult id1 res0 eff1). { auto. }
+         rewrite e in H1. rewrite <- Heqcl in H1. rewrite H1.
+         clear H1. clear dependent Heqresult. destruct res0.
+         ** destruct v; auto.
+            destruct ((Datatypes.length l0 =? Datatypes.length vl)%nat); auto.
+            apply IHclock in H. rewrite Heqcl. exact H.
+         ** inversion H. subst. auto.
+    + rewrite H0 in H. inversion H. subst. remember (S clock) as cl. simpl.
+      apply IHclock in H0.
+      rewrite H0. reflexivity.
+    + rewrite H0 in H. discriminate.
+    + rewrite H0 in H. discriminate.
+  - simpl in H. case_eq (eval_fbos_expr env id exp1 eff clock); intros. destruct res0.
+    + rewrite H0 in H. remember (S clock) as cl. simpl.
+      case_eq (eval_fbos_expr env id exp1 eff cl); intros. destruct res0.
+      ** apply IHclock in H0. rewrite H0 in H1. inversion H1. subst. apply IHclock in H. assumption.
+      ** apply IHclock in H0. rewrite H0 in H1. inversion H1.
+      ** apply IHclock in H0. congruence.
+      ** apply IHclock in H0. congruence.
+    + rewrite H0 in H. inversion H. subst. remember (S clock) as cl.
+      apply IHclock in H0. simpl. rewrite H0. auto.
+    + rewrite H0 in H. congruence.
+    + rewrite H0 in H. congruence.
+  - simpl in H. remember (S clock) as cl. simpl. apply IHclock in H. assumption.
+  - simpl in H. case_eq (eval_fbos_expr env id exp1 eff clock); intros. destruct res0.
+    + rewrite H0 in H. remember (S clock) as cl. simpl.
+      case_eq (eval_fbos_expr env id exp1 eff cl); intros. destruct res0.
+      ** apply IHclock in H0. rewrite H0 in H1. inversion H1. subst. apply IHclock in H. assumption.
+      ** apply IHclock in H0. rewrite H0 in H1. inversion H1.
+      ** apply IHclock in H0. congruence.
+      ** apply IHclock in H0. congruence.
+    + rewrite H0 in H. inversion H. subst. remember (S clock) as cl.
+      apply IHclock in H0. simpl. rewrite H0.
+      destruct (Datatypes.length vl2 =? 2)%nat;
+      rewrite H; apply IHclock in H2; rewrite H2; auto.
+    + rewrite H0 in H. congruence.
+    + rewrite H0 in H. congruence.
+Qed.
 
 Theorem bigger_clock :
   forall clock clock' env id exp eff id' res eff',
