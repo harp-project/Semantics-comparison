@@ -1419,7 +1419,7 @@ Proof.
                H H2 H5 H4 H3 H6 H7 H8 H9 H10 g H0). inversion P.
 Qed.
 
-Theorem determinism : forall {env : Environment} {e : Expression} {v1 : Value + Exception} 
+Theorem nos_determinism : forall {env : Environment} {e : Expression} {v1 : Value + Exception} 
     {id id' : nat} {eff eff' : SideEffectList}, 
   |env, id, e, eff| -e> | id', v1, eff'|
 ->

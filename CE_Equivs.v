@@ -1164,9 +1164,91 @@ Example eq2_nos_helper env id eff A B e1 e2 v1 v2 eff1 eff2 id1 id2 t:
 Proof.
   split; intros.
   {
-  
+    inversion H4. subst.
+    inversion H15. subst.
+    pose (nos_determinism H14 _ _ _ H0). destruct a. destruct H6. inversion H5. subst.
+    simpl in H16.
+    pose (nos_determinism H16 _ _ _ H1). destruct a. destruct H7. inversion H6. subst.
+    inversion H17. subst.
+    pose (EC1 := element_exist 1 _ H9).
+    pose (EC2 := element_exist 1 _ H10).
+    pose (EC3 := element_exist 1 _ H11).
+    inversion EC1 as [x'']. inversion EC2 as [eff1'']. inversion EC3 as [id1''].
+    inversion H7. inversion H8. inversion H13. subst. 
+    inversion H9. inversion H10. inversion H11.
+    pose (EC1' := element_exist 0 _ H20).
+    pose (EC2' := element_exist 0 _ H21).
+    pose (EC3' := element_exist 0 _ H22).
+    inversion EC1' as [x0'']. inversion EC2' as [eff2'']. inversion EC3' as [id2''].
+    inversion H18. inversion H23. inversion H25. subst.
+    inversion H20. inversion H21. inversion H22.
+    apply eq_sym, length_zero_iff_nil in H27.
+    apply eq_sym, length_zero_iff_nil in H28.
+    apply eq_sym, length_zero_iff_nil in H29. subst.
+     
+    pose (P1' := H12 0 Nat.lt_0_2).
+    pose (P2' := H12 1 Nat.lt_1_2).
+    inversion P1'. inversion P2'. simpl in *. subst.
+     
+    rewrite get_value_there in H37. 2: congruence.
+    rewrite get_value_here in H29. inversion H29.
+    rewrite get_value_here in H37. inversion H37. subst.
+    
+    eapply eval_let.
+    * exact H.
+    * eapply eval_let.
+      - exact H2.
+      - eapply eval_call with (vals := [v1; v2]) 
+                              (eff := [eff ++ eff1 ++ eff2; eff ++ eff1 ++ eff2]) 
+                              (ids := [id + id1 + id2; id + id1 + id2]); auto.
+        + intros. inversion H24. 2: inversion H27.
+          ** eapply eval_var. simpl. rewrite get_value_here. auto.
+          ** eapply eval_var. simpl. rewrite get_value_there, get_value_here. auto. congruence.
+          ** inversion H30.
+        + simpl. apply plus_effect_changeable with (eff ++ eff2 ++ eff1). assumption.
   }
   {
-  
+    inversion H4. subst.
+    inversion H15. subst.
+    pose (nos_determinism H14 _ _ _ H). destruct a. destruct H6. inversion H5. subst.
+    simpl in H16.
+    pose (nos_determinism H16 _ _ _ H2). destruct a. destruct H7. inversion H6. subst.
+    inversion H17. subst.
+    pose (EC1 := element_exist 1 _ H9).
+    pose (EC2 := element_exist 1 _ H10).
+    pose (EC3 := element_exist 1 _ H11).
+    inversion EC1 as [x'']. inversion EC2 as [eff1'']. inversion EC3 as [id1''].
+    inversion H7. inversion H8. inversion H13. subst. 
+    inversion H9. inversion H10. inversion H11.
+    pose (EC1' := element_exist 0 _ H20).
+    pose (EC2' := element_exist 0 _ H21).
+    pose (EC3' := element_exist 0 _ H22).
+    inversion EC1' as [x0'']. inversion EC2' as [eff2'']. inversion EC3' as [id2''].
+    inversion H18. inversion H23. inversion H25. subst.
+    inversion H20. inversion H21. inversion H22.
+    apply eq_sym, length_zero_iff_nil in H27.
+    apply eq_sym, length_zero_iff_nil in H28.
+    apply eq_sym, length_zero_iff_nil in H29. subst.
+     
+    pose (P1' := H12 0 Nat.lt_0_2).
+    pose (P2' := H12 1 Nat.lt_1_2).
+    inversion P1'. inversion P2'. simpl in *. subst.
+     
+    rewrite get_value_there in H29. 2: congruence.
+    rewrite get_value_here in H37. inversion H37.
+    rewrite get_value_here in H29. inversion H29. subst.
+    
+    eapply eval_let.
+    * exact H0.
+    * eapply eval_let.
+      - exact H1.
+      - eapply eval_call with (vals := [v1; v2]) 
+                              (eff := [eff ++ eff2 ++ eff1; eff ++ eff2 ++ eff1]) 
+                              (ids := [id + id2 + id1; id + id2 + id1]); auto.
+        + intros. inversion H24. 2: inversion H27.
+          ** eapply eval_var. simpl. rewrite get_value_there, get_value_here. auto. congruence.
+          ** eapply eval_var. simpl. rewrite get_value_here. auto.
+          ** inversion H30.
+        + simpl. apply plus_effect_changeable with (eff ++ eff1 ++ eff2). assumption.
   }
 Qed.
