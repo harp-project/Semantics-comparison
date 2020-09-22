@@ -119,7 +119,7 @@ with peval_expr : Environment -> nat -> Expression -> SideEffectList -> nat -> V
   ->
   |env, id', AApp1 b params, eff'| -a> |id'', res, eff''|
 ->
-  | env, id, EApp exp params, eff | -p> |id', res, eff'|
+  | env, id, EApp exp params, eff | -p> |id'', res, eff''|
 
 (* call *)
 | peval_call env id id' id'' eff eff' eff'' res res' f params:

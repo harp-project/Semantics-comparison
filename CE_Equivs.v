@@ -992,4 +992,62 @@ Proof.
       split; intros; inversion H4; subst; reflexivity.
 Qed.
 
+Example eq1_pbs env id e eff id' res eff':
+ |env, (S id), e, eff | -p> | id', res, eff' |
+<->
+ |env, id, ELet "X"%string (EFun [] e) (EApp (EVar "X"%string) []), eff| -p> |id', res, eff'|.
+Proof.
+  split; intros.
+  * eapply peval_let.
+    - apply peval_fun.
+    - apply peval_let_fin. simpl. eapply peval_app.
+      + eapply peval_var. rewrite get_value_here. reflexivity.
+      + eapply peval_app1_fin.
+        ** eapply peval_empty.
+        ** eapply peval_app2_fin; auto.
+  * inversion H; subst. inversion H9. inversion H10; subst.
+    - inversion H14.
+    - inversion H14. subst. inversion H19. subst.
+      inversion H4. simpl in H3. rewrite get_value_here in H3. subst.
+      inversion H11. subst. inversion H5. subst. inversion H13. subst.
+      + simpl in H21. exact H21.
+      + congruence.
+      + subst. simpl in H20. congruence.
+Qed.
 
+Example eq1_nos (e : Expression) (x : Var) (id id' : nat) env res eff eff':
+ |env, (S id), e, eff | -e> | id', res, eff' |
+<->
+ |env, id, ELet "X"%string (EFun [] e) (EApp (EVar "X"%string) []), eff| -e> |id', res, eff'|.
+Proof.
+  split; intros.
+  * eapply eval_let; auto.
+    - apply eval_fun.
+    - simpl. eapply eval_app with (vals := []) (var_list := []) (body := e) (ref := env)
+                                    (ext := []) (eff := []) (eff2 := eff) (eff3 := eff') (ids := []); auto.
+      + assert (get_value (insert_value env (inl "X") (VClos env [] id [] e)) (inl "X") 
+                = inl (VClos env [] id [] e)). { apply get_value_here. }
+        rewrite <- H0. apply eval_var. reflexivity.
+      + intros. inversion H0.
+      + simpl. unfold get_env. simpl. assumption.
+  * inversion H; subst.
+    - inversion H9. subst. unfold append_vars_to_env in H10. inversion H10; subst.
+      + apply eq_sym, length_zero_iff_nil in H5. subst.
+        apply eq_sym, length_zero_iff_nil in H6. subst.
+        apply eq_sym, length_zero_iff_nil in H2. subst.
+        inversion H3. subst. rewrite get_value_here in H5. inversion H5. subst.
+        exact H16.
+      + inversion H8. subst. rewrite get_value_here in H3. congruence.
+      + inversion H2.
+      + apply eq_sym, length_zero_iff_nil in H3. subst.
+        apply eq_sym, length_zero_iff_nil in H4. subst.
+        apply eq_sym, length_zero_iff_nil in H2. subst.
+        inversion H5. subst. rewrite get_value_here in H3. inversion H3. subst.
+        congruence.
+      + apply eq_sym, length_zero_iff_nil in H3. subst.
+        apply eq_sym, length_zero_iff_nil in H4. subst.
+        apply eq_sym, length_zero_iff_nil in H2. subst.
+        inversion H5. subst. rewrite get_value_here in H3. inversion H3. subst.
+        simpl in H7. congruence.
+    - inversion H9.
+Qed.
