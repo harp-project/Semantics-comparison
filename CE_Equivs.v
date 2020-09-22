@@ -6,6 +6,8 @@ Require Import Coq.Logic.FunctionalExtensionality.
 
 Import ListNotations.
 
+Section indhyp.
+
 Axiom Expression_ind_2 :
 forall P : Expression -> Prop,
        P ENil ->
@@ -16,7 +18,7 @@ forall P : Expression -> Prop,
        (forall (f6 : string) (l : list Expression), 
          (forall i : nat, i < length l -> P (nth i l ErrorExp)) ->
        P (ECall f6 l)) ->
-       (forall exp : Expression, P exp -> 
+       (forall exp : Expression, P exp ->
         forall l : list Expression,
          (forall i : nat, i < length l -> P (nth i l ErrorExp)) ->
         P (EApp exp l)) ->
@@ -29,6 +31,8 @@ forall P : Expression -> Prop,
         forall (v1 : Var) (e2 : Expression),
         P e2 -> forall (vl2 : list Var) (e3 : Expression), P e3 -> P (ETry e1 v1 e2 vl2 e3)) ->
        forall e : Expression, P e.
+
+End indhyp.
 
 Theorem clock_list_increase :
 forall l env id eff id' res eff' clock,
@@ -204,7 +208,7 @@ Proof.
              | Timeout => LTimeout
              | Failure => LFailure
              end
-         end) env id l eff) as result.
+         end) env id0 l eff0) as result.
          destruct result. 2-3: discriminate. symmetry in Heqresult.
          remember (S clock) as cl. simpl. apply IHclock in H0. rewrite H0.
          rewrite Heqcl in IHclock.
@@ -226,7 +230,7 @@ Proof.
                    | Timeout => LTimeout
                    | Failure => LFailure
                    end
-               end) env id l eff = LResult id1 res0 eff1). { auto. }
+               end) env id0 l eff0 = LResult id1 res0 eff1). { auto. }
          rewrite e in H1. rewrite <- Heqcl in H1. rewrite H1.
          clear H1. clear dependent Heqresult. destruct res0.
          ** destruct v; auto.
@@ -277,7 +281,7 @@ Proof.
   * apply clock_increase. auto.
 Qed.
 
-Theorem restrict env l a :
+(* Theorem restrict env l a :
 (forall i : nat,
     i < Datatypes.length (a :: l) ->
     forall (id : nat) (eff : SideEffectList) (id' : nat) (res : Value + Exception)
@@ -515,7 +519,7 @@ Proof.
       rewrite H7.
       apply bigger_clock_list with (clock' := x1 + x2) in H8. 2: lia.
       rewrite H8. auto.
-Qed.
+Qed. *)
 
 Theorem fbos_sound :
   forall env id exp eff id' res eff',
@@ -553,7 +557,7 @@ Proof.
 
 Admitted.
 
-Lemma list_length_equal :
+(* Lemma list_length_equal :
 forall env l id eff id' vl eff' clock,
 (fix eval_list
           (env : Environment) (id : nat) (exps : list Expression) 
@@ -606,7 +610,7 @@ Proof.
       + discriminate.
     - discriminate.
     - discriminate.
-Qed.
+Qed. *)
 
 Lemma list_correct :
 forall l env id eff id' vl eff' clock,
@@ -628,11 +632,10 @@ forall l env id eff id' vl eff' clock,
               | Failure => LFailure
               end
           end) env id l eff = LResult id' (inl vl) eff'
-(* ->
-  length l = length vl *)
 ->
 (
 exists idl effl, 
+  length l = length vl /\
   length l = length idl /\
   length l = length effl /\
   eff' = last effl eff /\
@@ -669,22 +672,104 @@ Proof.
          end) env id0 l eff0); intros. destruct res.
          + rewrite H1 in H. inversion H. subst.
            pose (IHl _ _ _ _ _ _ _ H1). inversion e. inversion H2.
-           destruct H3, H4, H5, H6.
+           destruct H3, H4, H5, H6, H7.
            exists (id0 :: x). exists (eff0 :: x0).
-           split. 2: split. 3: split. 4: split.
-           1-2 : simpl; lia.
-           ** rewrite last_element_equal with (def2 := eff) in H5. auto.
-           ** rewrite last_element_equal with (def2 := id) in H6. auto.
+           split. 2: split. 3: split. 4: split. 5: split.
+           1-3 : simpl; lia.
+           ** rewrite last_element_equal with (def2 := eff) in H6. auto.
+           ** rewrite last_element_equal with (def2 := id) in H7. auto.
            ** intros. destruct i.
              -- simpl. assumption.
-             -- simpl in H8. 
+             -- simpl in H9. 
                 (* setoid failure for simple rewrite *)
                 assert (i < length l). { lia. }
-                apply H7. assumption.
+                apply H8. assumption.
          + rewrite H1 in H. discriminate.
          + rewrite H1 in H. discriminate.
          + rewrite H1 in H. discriminate.
     - rewrite H0 in H. discriminate.
+    - rewrite H0 in H. discriminate.
+    - rewrite H0 in H. discriminate.
+Qed.
+
+Lemma list_exception_correct :
+forall l env id eff id' ex eff' clock,
+(fix eval_list
+          (env : Environment) (id : nat) (exps : list Expression) 
+          (eff : SideEffectList) {struct exps} : ResultListType :=
+          match exps with
+          | [] => LResult id (inl []) eff
+          | x0 :: xs =>
+              match eval_fbos_expr env id x0 eff clock with
+              | Result id' (inl v) eff' =>
+                  match eval_list env id' xs eff' with
+                  | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
+                  | LResult id'' (inr _) _ => eval_list env id' xs eff'
+                  | _ => eval_list env id' xs eff'
+                  end
+              | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
+              | Timeout => LTimeout
+              | Failure => LFailure
+              end
+          end) env id l eff = LResult id' (inr ex) eff'
+->
+(
+exists vals idl effl, 
+  length vals < length l /\
+  length vals = length idl /\
+  length vals = length effl /\
+  (forall i, i < length vals ->
+    eval_fbos_expr env (nth_def idl id 0 i) (nth i l ErrorExp) (nth_def effl eff [] i) clock =
+      Result (nth_def idl id 0 (S i)) (inl (nth i vals ErrorValue)) (nth_def effl eff [] (S i))
+  ) /\
+  eval_fbos_expr env (last idl id) (nth (length vals) l ErrorExp) (last effl eff) clock = Result id' (inr ex) eff'
+)
+.
+Proof.
+  induction l; intros.
+  * inversion H.
+  * case_eq (eval_fbos_expr env id a eff clock); intros. destruct res.
+    - rewrite H0 in H.
+      case_eq ((fix eval_list
+         (env : Environment) (id : nat) (exps : list Expression) (eff : SideEffectList)
+         {struct exps} : ResultListType :=
+         match exps with
+         | [] => LResult id (inl []) eff
+         | x0 :: xs =>
+             match eval_fbos_expr env id x0 eff clock with
+             | Result id' (inl v) eff' =>
+                 match eval_list env id' xs eff' with
+                 | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
+                 | LResult id'' (inr _) _ => eval_list env id' xs eff'
+                 | _ => eval_list env id' xs eff'
+                 end
+             | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
+             | Timeout => LTimeout
+             | Failure => LFailure
+             end
+         end) env id0 l eff0); intros. destruct res.
+         + rewrite H1 in H. inversion H.
+         + rewrite H1 in H. inversion H. subst.
+           pose (IHl env id0 eff0 id' ex eff' clock H1).
+           destruct e. destruct H2, H2.
+           destruct H2, H3, H4, H5.
+           exists (v::x). exists (id0::x0). exists (eff0::x1).
+           split. 2: split. 3: split. 4: split.
+           all: try (simpl; lia).
+           ** intros. destruct i.
+             -- simpl. assumption.
+             -- apply H5. simpl in H7. lia.
+           ** rewrite last_element_equal with (def2 := id) in H6.
+              rewrite last_element_equal with (def2 := eff) in H6.
+              assumption.
+         + rewrite H1 in H. congruence.
+         + rewrite H1 in H. congruence.
+    - rewrite H0 in H. inversion H. subst.
+      exists []. exists []. exists [].
+      split. 2: split. 3: split. 4: split.
+      all: auto.
+      + simpl. lia.
+      + intros. inversion H1. 
     - rewrite H0 in H. discriminate.
     - rewrite H0 in H. discriminate.
 Qed.
@@ -728,15 +813,119 @@ Proof.
     - destruct res0.
       + rewrite H2 in H3. remember (eval f6 l0 eff0) as result.
         destruct (result). inversion H3. subst. remember H2 as e1. clear Heqe1. apply list_correct in H2.
-        inversion H2. inversion H4. destruct H5. destruct H6.
+        inversion H2. inversion H4. destruct H5. destruct H6. destruct H7.
         eapply eval_call.
-        ** apply list_length_equal in e1. exact e1.
-        ** exact H6.
         ** exact H5.
-        ** intros. apply H. assumption. eexists. apply H7. assumption.
-        ** symmetry. inversion H7. rewrite <- H8. apply Heqresult.
-        ** apply H7.
-     + 
+        ** exact H7.
+        ** exact H6.
+        ** intros. apply H. assumption. eexists. apply H8. assumption.
+        ** symmetry. inversion H8. rewrite <- H9. apply Heqresult.
+        ** apply H8.
+     + rewrite H2 in H3. inversion H3. subst.
+       apply list_exception_correct in H2.
+       destruct H2, H2, H2, H2, H4, H5.
+       apply eval_call_ex with (i := length x0) (vals := x0) (eff := x2) (ids := x1); auto.
+       ** intros. assert (j < length l). { lia. } pose (H j H8).
+          apply e0. eexists. apply H6. assumption.
+       ** apply H; auto. eexists. apply H6.
+    - rewrite H2 in H3. congruence.
+    - rewrite H2 in H3. congruence.
+  * inversion H0. destruct x.
+    - simpl in H1. congruence.
+    - simpl in H1. case_eq (eval_fbos_expr env id exp eff x); intros. destruct res0.
+      + rewrite H2 in H1. case_eq ((fix eval_list
+          (env : Environment) (id : nat) (exps : list Expression) 
+          (eff : SideEffectList) {struct exps} : ResultListType :=
+          match exps with
+          | [] => LResult id (inl []) eff
+          | x0 :: xs =>
+              match eval_fbos_expr env id x0 eff x with
+              | Result id' (inl v) eff' =>
+                  match eval_list env id' xs eff' with
+                  | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
+                  | LResult id'' (inr _) _ => eval_list env id' xs eff'
+                  | _ => eval_list env id' xs eff'
+                  end
+              | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
+              | Timeout => LTimeout
+              | Failure => LFailure
+              end
+          end) env id0 l eff0); intros. destruct res0.
+          ** rewrite H3 in H1. apply list_correct in H3.
+             destruct v.
+             -- inversion H1. destruct H3, H3.
+                eapply eval_app_badfun_ex with (vals := l0) (ids := x0) (eff := x1);
+                try (apply H3).
+                ++ apply IHexp. eexists. exact H2.
+                ++ intros. destruct H3, H8, H9, H10, H11. subst.
+                   apply H. auto. exists x. subst. apply H12. auto.
+                ++ intros. congruence.
+                ++ subst. apply H3.
+                ++ subst. apply H3.
+            -- inversion H1. destruct H3, H3.
+                eapply eval_app_badfun_ex with (vals := l0) (ids := x0) (eff := x1);
+                try (apply H3).
+                ++ apply IHexp. eexists. exact H2.
+                ++ intros. destruct H3, H8, H9, H10, H11. subst.
+                   apply H. auto. exists x. subst. apply H12. auto.
+                ++ intros. congruence.
+                ++ subst. apply H3.
+                ++ subst. apply H3.
+             -- case_eq (Datatypes.length l0 =? Datatypes.length vl)%nat; intros.
+                ++ destruct H3, H3. destruct H3, H5, H6, H7, H8.
+                  eapply eval_app with (vals := l0) (ids := x0) (eff := x1); auto.
+                  *** apply IHexp. eexists. exact H2.
+                  *** apply Nat.eqb_eq in H4. auto.
+                  *** intros. apply H. auto. exists x. subst. apply H9. auto.
+                  *** rewrite H4 in H1. admit. (* TODO: check induction hypothesis *)
+                ++ rewrite H4 in H1. inversion H1. subst.
+                   apply Nat.eqb_neq in H4.
+                   destruct H3, H3. destruct H3, H5, H6, H7, H8.
+                   eapply eval_app_badarity_ex with (vals := l0) (ids := x0) (eff := x1); auto.
+                   *** apply IHexp. eexists. exact H2.
+                   *** intros. apply H. auto. exists x. subst. apply H9. auto.
+                   *** exact H7.
+                   *** exact H8.
+        ** rewrite H3 in H1. inversion H1. subst.
+           apply list_exception_correct in H3. destruct H3, H3, H3, H3, H4, H5, H6.
+           eapply eval_app_param_ex with (i := length x0) (vals := x0) (ids := x1) (eff := x2); auto.
+           -- apply IHexp. eexists. exact H2.
+           -- intros. apply H. lia. exists x. subst. apply H6. auto.
+           -- apply H. auto. eexists. exact H7.
+        ** rewrite H3 in H1. congruence.
+        ** rewrite H3 in H1. congruence.
+      + rewrite H2 in H1. destruct H0. inversion H1. subst.
+        eapply eval_app_closure_ex. apply IHexp. eexists. exact H2.
+      + rewrite H2 in H1. congruence.
+      + rewrite H2 in H1. congruence.
+  * destruct H. destruct x.
+    - inversion H.
+    - simpl in H. case_eq (eval_fbos_expr env id exp1 eff x); intros. destruct res0.
+      + rewrite H0 in H.
+        eapply eval_let.
+        ** apply IHexp1. eexists. exact H0.
+        ** apply IHexp2. eexists. exact H.
+      + rewrite H0 in H. inversion H. subst.
+        eapply eval_let_ex.
+        apply IHexp1. eexists. exact H0.
+      + rewrite H0 in H. congruence.
+      + rewrite H0 in H. congruence.
+  * destruct H. destruct x.
+    - inversion H.
+    - simpl in H. apply eval_letrec. apply IHexp2. eexists. exact H.
+  * destruct H. destruct x.
+    - inversion H.
+    - simpl in H. case_eq (eval_fbos_expr env id exp1 eff x); intros. destruct res0.
+      + rewrite H0 in H.
+        eapply eval_try.
+        ** apply IHexp1. eexists. exact H0.
+        ** apply IHexp2. eexists. exact H.
+      + rewrite H0 in H. inversion H. subst.
+        eapply eval_catch.
+        ** apply IHexp1. eexists. exact H0.
+        ** apply IHexp3. eexists. simpl. exact H.
+      + rewrite H0 in H. congruence.
+      + rewrite H0 in H. congruence.
 Admitted.
 
 

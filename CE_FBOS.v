@@ -166,7 +166,7 @@ match clock with
                     | Timeout => LTimeout
                     end
                  end
-                 ) env id l eff
+                 ) env id' l eff'
          in
          match res with
          | LResult id'' (inl vl) eff'' =>
