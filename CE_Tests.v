@@ -20,9 +20,9 @@ Proof.
     apply peval_let_fin. eapply peval_app.
     - eapply peval_var. reflexivity.
     - simpl. eapply peval_app1_fin.
-      + eapply peval_list.
+      + eapply peval_list_cons.
         ** apply peval_lit.
-        ** eapply peval_list.
+        ** eapply peval_list_cons.
           -- apply peval_lit.
           -- apply peval_empty.
       + apply peval_app2_fin.

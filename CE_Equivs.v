@@ -1051,3 +1051,122 @@ Proof.
         simpl in H7. congruence.
     - inversion H9.
 Qed.
+
+Proposition plus_comm_basic_value {e1 e2 v : Value} (eff eff2 : SideEffectList) : 
+  eval "+"%string [e1 ; e2] eff = (inl v, eff)
+->
+  eval "+"%string [e2; e1] eff2 = (inl v, eff2).
+Proof.
+  simpl. case_eq e1; case_eq e2; intros.
+  all: try(reflexivity || inversion H1).
+  all: try(destruct l); try(destruct l0); try(reflexivity || inversion H1).
+  * unfold eval. simpl. rewrite <- Z.add_comm. reflexivity.
+Qed.
+
+Proposition plus_effect_changeable {v1 v2 : Value} (v' : Value + Exception) (eff eff2 : SideEffectList) :
+  eval "+"%string [v1; v2] eff = (v', eff)
+->
+  eval "+"%string [v1; v2] eff2 = (v', eff2).
+Proof.
+  intros. simpl in *. case_eq v1; case_eq v2; intros; subst.
+  all: try(inversion H; reflexivity).
+  all: try(destruct l); try(inversion H; reflexivity).
+  all: destruct l0; inversion H; auto.
+Qed.
+
+Example eq2_pbs_helper env id eff A B e1 e2 v1 v2 eff1 eff2 id1 id2 t:
+  | env, id, e1, eff | -p> |id + id1, inl v1, eff ++ eff1| ->
+  | env, id, e2, eff | -p> |id + id2, inl v2, eff ++ eff2| ->
+  | insert_value env (inl B) v2, id + id2, e1, eff ++ eff2| -p> |id + id2 + id1, inl v1, eff ++ eff2 ++ eff1 | ->
+  | insert_value env (inl A) v1, id + id1, e2, eff ++ eff1| -p> |id + id1 + id2, inl v2, eff ++ eff1 ++ eff2 | ->
+  A <> B ->
+  | env, id, 
+      ELet B e2 (ELet A e1
+        (ECall "+"%string [EVar A ; EVar B])),
+      eff | -p> | id + id2 + id1, inl t, eff ++ eff2 ++ eff1|
+<->
+  | env, id, 
+      ELet A e1 (ELet B e2
+        (ECall "+"%string [EVar A ; EVar B])),
+      eff| -p> | id + id1 + id2, inl t, eff ++ eff1 ++ eff2|.
+Proof.
+  split;
+  intros.
+  {
+   inversion H4. subst.
+  (* let deconstruction 2x *)
+  pose (peval_expr_determinism _ _ _ _ _ _ _ H0 _ _ _ H14). destruct a. destruct H6. subst.
+  inversion H15. subst. inversion H16. subst.
+  pose (peval_expr_determinism _ _ _ _ _ _ _ H1 _ _ _ H17). destruct a. destruct H6. subst.
+  inversion H18. subst. inversion H19. subst.
+  (* call deconstruction *)
+  inversion H9. subst. inversion H22. subst. unfold append_vars_to_env in *. rewrite get_value_here in *.
+  inversion H23. subst. inversion H24. subst. unfold append_vars_to_env in *. rewrite get_value_there, get_value_here in *. 2-3: congruence.
+  
+  inversion H25. subst.
+  inversion H20. subst.
+  
+  eapply peval_let.
+  * exact H.
+  * eapply peval_let_fin. eapply peval_let.
+    - exact H2.
+    - eapply peval_let_fin. eapply peval_call.
+      + eapply peval_list_cons. eapply peval_var. simpl. rewrite get_value_there, get_value_here. reflexivity. congruence.
+        simpl. eapply peval_list_cons. eapply peval_var. rewrite get_value_here. reflexivity.
+        eapply peval_empty.
+      + eapply peval_call_fin.
+        simpl. apply plus_effect_changeable with (eff ++ eff2 ++ eff1). assumption.
+ }
+ 
+ (* This is boiler plate *)
+ {
+ intros. inversion H4. subst.
+  (* let deconstruction 2x *)
+  pose (peval_expr_determinism _ _ _ _ _ _ _ H _ _ _ H14). destruct a. destruct H6. subst.
+  inversion H15. subst. inversion H16. subst.
+  pose (peval_expr_determinism _ _ _ _ _ _ _ H2 _ _ _ H17). destruct a. destruct H6. subst.
+  inversion H18. subst. inversion H19. subst.
+  (* call deconstruction *)
+  inversion H9. subst. inversion H22. subst. unfold append_vars_to_env in *. rewrite get_value_there, get_value_here in *. 2-3: congruence.
+  inversion H23. subst. inversion H24. subst. unfold append_vars_to_env in *. rewrite get_value_here in *.
+  
+  inversion H25. subst.
+  inversion H20. subst.
+  
+  eapply peval_let.
+  * exact H0.
+  * eapply peval_let_fin. eapply peval_let.
+    - exact H1.
+    - eapply peval_let_fin. eapply peval_call.
+      + eapply peval_list_cons. eapply peval_var. simpl. rewrite get_value_here. reflexivity.
+        simpl. eapply peval_list_cons. eapply peval_var. rewrite get_value_there, get_value_here. reflexivity. congruence.
+        eapply peval_empty.
+      + eapply peval_call_fin.
+        simpl. apply plus_effect_changeable with (eff ++ eff1 ++ eff2). assumption.
+ }
+Qed.
+
+Example eq2_nos_helper env id eff A B e1 e2 v1 v2 eff1 eff2 id1 id2 t:
+  | env, id, e1, eff | -e> |id + id1, inl v1, eff ++ eff1| ->
+  | env, id, e2, eff | -e> |id + id2, inl v2, eff ++ eff2| ->
+  | insert_value env (inl B) v2, id + id2, e1, eff ++ eff2| -e> |id + id2 + id1, inl v1, eff ++ eff2 ++ eff1 | ->
+  | insert_value env (inl A) v1, id + id1, e2, eff ++ eff1| -e> |id + id1 + id2, inl v2, eff ++ eff1 ++ eff2 | ->
+  A <> B ->
+  | env, id, 
+      ELet B e2 (ELet A e1
+        (ECall "+"%string [EVar A ; EVar B])),
+      eff | -e> | id + id2 + id1, inl t, eff ++ eff2 ++ eff1|
+<->
+  | env, id, 
+      ELet A e1 (ELet B e2
+        (ECall "+"%string [EVar A ; EVar B])),
+      eff| -e> | id + id1 + id2, inl t, eff ++ eff1 ++ eff2|.
+Proof.
+  split; intros.
+  {
+  
+  }
+  {
+  
+  }
+Qed.

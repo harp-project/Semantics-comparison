@@ -235,3 +235,27 @@ Proof.
   * inversion H0. subst. apply H in H12. assumption.
   * inversion H0. subst. apply H in H12. assumption.
 Qed.
+
+Theorem peval_expr_determinism :
+  forall env id exp eff id' res eff', | env, id, exp, eff | -p> | id', res, eff' |
+->
+  (forall id'' res' eff'', |env, id, exp, eff| -p> |id'', res', eff''| -> id' = id'' /\ res = res' /\ eff' = eff'').
+Proof.
+  apply peval_determinism.
+Qed.
+
+Theorem peval_aux_determinism :
+  forall env id exp eff id' res eff', | env, id, exp, eff | -a> | id', res, eff' |
+->
+  (forall id'' res' eff'', |env, id, exp, eff| -a> |id'', res', eff''| -> id' = id'' /\ res = res' /\ eff' = eff'').
+Proof.
+  apply peval_determinism.
+Qed.
+
+Theorem peval_list_determinism :
+  forall env id exp eff id' res eff', | env, id, exp, eff | -l> | id', res, eff' |
+->
+  (forall id'' res' eff'', |env, id, exp, eff| -l> |id'', res', eff''| -> id' = id'' /\ res = res' /\ eff' = eff'').
+Proof.
+  apply peval_determinism.
+Qed.
