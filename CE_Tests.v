@@ -55,3 +55,48 @@ Qed.
 
 (* functional big-step evaluation *)
 Compute eval_fbos_expr [] 0 (ELet "X" (EFun ["Y"; "Z"] (EVar "Y")) (EApp (EVar "X") [ELit (Atom "a"); ELit (Atom "b")])) [] 1000.
+
+Example div_expr_example : Expression :=
+  ELetRec ("f", 0) [] (ELet "X" (ECall "fwrite" [ELit (Atom "a")]) 
+                         (EApp (EFunId ("f", 0)) []))
+       (EApp (EFunId ("f", 0)) []).
+
+
+Theorem clock_decrease :
+  forall clock env id exp eff,
+  eval_fbos_expr env id exp eff (S clock) = Timeout
+->
+  eval_fbos_expr env id exp eff clock = Timeout.
+Proof.
+Admitted.
+
+Import List.
+
+Example div :
+  forall clock env id eff, eval_fbos_expr env id div_expr_example eff clock = Timeout.
+Proof.
+  induction clock.
+  * auto.
+  * intros. simpl.
+    unfold append_funs_to_env. simpl.
+    pose (IHclock env id (eff ++ [(Output, [VLit (Atom "a")])])).
+    destruct clock.
+    - auto.
+    - simpl in *.
+      destruct clock.
+      + auto.
+      + simpl. rewrite get_value_here. rewrite nil_length.
+        (* remember (EApp (EFunId ("f", 0)) []) as appl. *)
+        destruct clock.
+        ** auto.
+        ** simpl. destruct clock.
+          -- auto.
+          -- simpl.
+             apply clock_decrease in e.
+             simpl in e. unfold append_funs_to_env in e. simpl in e.
+             rewrite get_value_here in e.
+             rewrite nil_length in e.
+             unfold get_env. simpl.
+             rewrite get_value_there, get_value_here. 2: congruence. rewrite nil_length.
+             exact e.
+Qed.

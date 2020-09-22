@@ -24,7 +24,7 @@ end.
 Reserved Notation "| env , id , e , eff | -a> | id' , e' , eff' |" (at level 70).
 Reserved Notation "| env , id , e , eff | -p> | id' , e' , eff' |" (at level 70).
 Reserved Notation "| env , id , e , eff | -l> | id' , e' , eff' |" (at level 70).
-Inductive eval_aux : Environment -> nat -> AuxExpression -> SideEffectList -> nat -> Value + Exception -> SideEffectList -> Prop :=
+Inductive peval_aux : Environment -> nat -> AuxExpression -> SideEffectList -> nat -> Value + Exception -> SideEffectList -> Prop :=
 
 | peval_app1_exc env id ex eff params:
   |env, id, AApp1 (inr ex) params, eff | -a> |id, inr ex, eff|
@@ -41,15 +41,15 @@ Inductive eval_aux : Environment -> nat -> AuxExpression -> SideEffectList -> na
 ->
   |env, id, AApp2 (VClos ref ext nid var_list body) (inl vals), eff| -a> |id', res, eff'|
 
-| peval_app2_exc1 env id id' eff eff' vals v res:
+| peval_app2_exc1 env id eff vals v :
   (forall ref ext var_list body n, v <> VClos ref ext n var_list body)
 ->
-  |env, id, AApp2 v (inl vals), eff| -a> |id', res, eff'|
+  |env, id, AApp2 v (inl vals), eff| -a> |id, inr (badfun v), eff|
 
-| peval_app2_exc2 env id id' eff eff' var_list vals ref ext body nid :
+| peval_app2_exc2 env id eff var_list vals ref ext body nid :
   length var_list <> length vals
 ->
-  | env, id, AApp2 (VClos ref ext nid var_list body) (inl vals), eff | -a> |id', inr (badarity (VClos ref ext nid var_list body)), eff'|
+  | env, id, AApp2 (VClos ref ext nid var_list body) (inl vals), eff | -a> |id, inr (badarity (VClos ref ext nid var_list body)), eff|
 
 | peval_app2_exc env id eff v ex :
   |env, id, AApp2 v (inr ex), eff| -a> |id, inr ex, eff|
@@ -63,7 +63,7 @@ Inductive eval_aux : Environment -> nat -> AuxExpression -> SideEffectList -> na
   | env, id, ALet var (inl v) e2, eff | -a> | id', res, eff' |
 
 | peval_call_fin env id f vals eff eff' res:
-  eval f vals eff' = (res, eff')
+  eval f vals eff = (res, eff')
 ->
   | env, id, ACall f (inl vals), eff | -a> | id, res, eff' |
 
@@ -82,8 +82,8 @@ Inductive eval_aux : Environment -> nat -> AuxExpression -> SideEffectList -> na
 ->
   | env, id, ATry (inr ex) v1 e2 varl e3, eff | -a> | id', res, eff'|
 
-where "| env , id , e , eff | -a> | id' , e' , eff' |" := (eval_aux env id e eff id' e' eff')
-with eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat -> Value + Exception -> SideEffectList -> Prop :=
+where "| env , id , e , eff | -a> | id' , e' , eff' |" := (peval_aux env id e eff id' e' eff')
+with peval_expr : Environment -> nat -> Expression -> SideEffectList -> nat -> Value + Exception -> SideEffectList -> Prop :=
 | peval_nil (env : Environment) (eff : SideEffectList) (id : nat):
   |env, id, ENil, eff| -p> |id, inl VNil, eff|
 
@@ -143,8 +143,8 @@ with eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat -> Va
 ->
   |env, id, ELetRec f l b e, eff1| -p> | id', res, eff2|
 
-where "| env , id , e , eff | -p> | id' , e' , eff' |" := (eval_expr env id e eff id' e' eff')
-with eval_list : Environment -> nat -> AuxList -> SideEffectList -> nat -> list Value + Exception -> SideEffectList -> Prop :=
+where "| env , id , e , eff | -p> | id' , e' , eff' |" := (peval_expr env id e eff id' e' eff')
+with peval_list : Environment -> nat -> AuxList -> SideEffectList -> nat -> list Value + Exception -> SideEffectList -> Prop :=
 
 (* | peval_app2 env id id' id'' eff eff' eff'' v r rest vals res1 res2:
   |env, id, r, eff| -p> |id', res1, eff'| ->
@@ -155,7 +155,7 @@ with eval_list : Environment -> nat -> AuxList -> SideEffectList -> nat -> list 
 | peval_empty env id eff vals :
   | env, id, AList [] (inl vals), eff | -l> | id, inl vals, eff|
 
-| peval_list env id id' id'' eff eff' eff'' r rest vals res res':
+| peval_list_cons env id id' id'' eff eff' eff'' r rest vals res res':
   | env, id, r, eff | -p> |id', res, eff'| ->
   |env, id', AList rest (mk_result res vals), eff' | -l> | id'', res', eff''|
 ->
@@ -164,5 +164,74 @@ with eval_list : Environment -> nat -> AuxList -> SideEffectList -> nat -> list 
 | peval_exc env id eff rest ex:
   | env, id, AList rest (inr ex), eff | -l> | id, inr ex, eff|
 
-where "| env , id , e , eff | -l> | id' , e' , eff' |" := (eval_list env id e eff id' e' eff')
+where "| env , id , e , eff | -l> | id' , e' , eff' |" := (peval_list env id e eff id' e' eff')
 .
+
+Scheme peval_expr_ind2 := Induction for peval_expr Sort Prop
+with   peval_list_ind2 := Induction for peval_list Sort Prop
+with   peval_aux_ind2  := Induction for peval_aux  Sort Prop
+.
+
+Check peval_expr_ind2.
+
+Combined Scheme peval_ind from peval_expr_ind2, peval_aux_ind2, peval_list_ind2.
+
+Check peval_ind.
+
+
+Theorem peval_determinism :
+(
+  forall env id exp eff id' res eff', | env, id, exp, eff | -p> | id', res, eff' |
+->
+  (forall id'' res' eff'', |env, id, exp, eff| -p> |id'', res', eff''| -> id' = id'' /\ res = res' /\ eff' = eff'')
+)
+(* with peval_determinism2: *) /\
+(forall env id exp eff id' res eff',
+  | env, id, exp, eff | -a> | id', res, eff' |
+->
+  (forall id'' res' eff'', |env, id, exp, eff| -a> |id'', res', eff''| -> id' = id'' /\ res = res' /\ eff' = eff'')
+)
+(* with peval_determinism3: *) /\
+( forall env id exp eff id' res eff',
+  | env, id, exp, eff | -l> | id', res, eff' |
+->
+  (forall id'' res' eff'', |env, id, exp, eff| -l> |id'', res', eff''| -> id' = id'' /\ res = res' /\ eff' = eff'')
+)
+.
+Proof.
+  apply (* intro. induction H using  *)peval_ind; intros.
+  * inversion H. subst. auto.
+  * inversion H. subst. auto.
+  * inversion H. subst. auto.
+  * inversion H. subst. auto.
+  * inversion H. subst. auto.
+  * inversion H1. subst. apply H in p. destruct p, H3. subst. apply H0 in p0. destruct p0, H6. subst. apply H0. apply H in H11. destruct H11, H9. subst. assumption.
+  * inversion H1. subst. apply H in H6. destruct H6, H3. subst. apply H0 in H11. destruct H11, H3. subst. auto.
+  * inversion H1. subst. apply H in H6. destruct H6, H3. subst. apply H0 in H11. destruct H11, H3. subst. auto.
+  * inversion H1. subst. apply H in H13. destruct H13, H3. subst. apply H0 in H14. destruct H14, H3. subst. auto.
+  * inversion H0. subst. apply H in H11. destruct H11, H2. subst. auto.
+  * inversion H. subst. auto.
+  * inversion H1. subst. apply H in H11. destruct H11, H3. subst. apply H0 in H12. destruct H12, H3. subst. auto.
+  * inversion H. auto.
+  * inversion H. auto.
+  * inversion H1. subst. apply H in H6. destruct H6, H3. subst. apply H0. assumption.
+  * inversion H0; subst.
+    - apply H in H14. assumption.
+    - congruence.
+    - congruence.
+  * inversion H; subst.
+    - congruence.
+    - auto.
+    - congruence.
+  * inversion H; subst.
+    - congruence.
+    - congruence.
+    - auto.
+  * inversion H. subst. auto.
+  * inversion H; subst. auto.
+  * inversion H0. subst. apply H in H10. assumption.
+  * inversion H. subst. rewrite H8 in e. inversion e. auto.
+  * inversion H. subst. auto.
+  * inversion H0. subst. apply H in H12. assumption.
+  * inversion H0. subst. apply H in H12. assumption.
+Qed.
