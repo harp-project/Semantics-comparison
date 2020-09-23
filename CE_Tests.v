@@ -100,3 +100,76 @@ Proof.
              rewrite get_value_there, get_value_here. 2: congruence. rewrite nil_length.
              exact e.
 Qed.
+
+
+
+Definition exp2 := ELet "X" (ELit (Integer 4))
+                       (ELet "Y" (ELit (Integer 5))
+                            (EApp (EFun ["X"; "Y"] (ECall "+" [EVar "X"; EVar "Y"])) [EVar "X"; EVar "Y"])).
+
+
+(* Big-step second example *)
+Goal
+  | [], 0, exp2, [] | -e> | 1, inl (VLit (Integer 9)), [] |.
+Proof.
+  unfold exp2.
+  eapply eval_let.
+  * apply eval_lit.
+  * eapply eval_let.
+    - apply eval_lit.
+    - eapply eval_app with (vals := [VLit (Integer 4); VLit (Integer 5)])
+                           (eff := [[];[]])
+                           (ids := [1;1]).
+      + auto.
+      + apply eval_fun.
+      + auto.
+      + auto.
+      + auto.
+      + intros. inversion H. 2: inversion H1. 3: inversion H3.
+        ** apply eval_var. reflexivity.
+        ** apply eval_var. reflexivity.
+      + apply eval_call with (vals := [VLit (Integer 4); VLit (Integer 5)])
+                             (eff := [[];[]])
+                             (ids := [1;1]).
+        ** auto.
+        ** auto.
+        ** auto.
+        ** intros. inversion H. 2: inversion H1. 3: inversion H3.
+           -- apply eval_var. reflexivity.
+           -- apply eval_var. reflexivity.
+        ** reflexivity.
+        ** reflexivity.
+Qed.
+
+
+(* Pretty-Big-step second example *)
+Goal
+  | [], 0, exp2, [] | -p> | 1, inl (VLit (Integer 9)), [] |.
+Proof.
+  unfold exp2.
+  eapply peval_let.
+  * apply peval_lit.
+  * apply peval_let_fin. eapply peval_let.
+    - apply peval_lit.
+    - apply peval_let_fin. eapply peval_app.
+      + apply peval_fun.
+      + simpl. eapply peval_app1_fin.
+        ** eapply peval_list_cons.
+          -- eapply peval_var. reflexivity.
+          -- eapply peval_list_cons.
+            ++ eapply peval_var. reflexivity.
+            ++ eapply peval_empty.
+        ** eapply peval_app2_fin.
+          -- reflexivity.
+          -- eapply peval_call.
+            ++ eapply peval_list_cons.
+              *** eapply peval_var. reflexivity.
+              *** eapply peval_list_cons.
+                --- eapply peval_var. reflexivity.
+                --- eapply peval_empty.
+           ++ eapply peval_call_fin. reflexivity.
+Qed.
+
+Compute eval_fbos_expr 1000 [] 0 exp2 [].
+
+

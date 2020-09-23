@@ -105,41 +105,6 @@ match clock with
    | EVar v => Result id (get_value env (inl v)) eff
    | EFunId f => Result id (get_value env (inr f)) eff
    | EFun vl e => Result (S id) (inl (VClos env [] id vl e)) eff
-  (*  | ECons hd tl =>
-     match eval_fbos_expr env id tl eff clock' with
-     | Result id' (inl tlv) eff' =>
-       match eval_fbos_expr env id' hd eff' clock' with
-       | Result id'' (inl hdv) eff'' => Result id'' (inl (VCons hdv tlv)) eff''
-       | r => r
-       end
-     | r => r
-     end *)
-(*    | ETuple l => 
-   let res := 
-      (fix eval_list env id exps eff : ResultListType := 
-                 match exps with
-                 | []    => LResult id (inl []) eff
-                 | x::xs => 
-                    match eval_fbos_expr env id x eff clock' with
-                    | Result id' (inl v) eff' => 
-                      let res := eval_list env id' xs eff' in
-                        match res with
-                        | LResult id'' (inl xs') eff'' => LResult id'' (inl (v::xs')) eff''
-                        | r => r
-                        end
-                    | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
-                    | Failure => LFailure
-                    | Timeout => LTimeout
-                    end
-                 end
-                 ) env id l eff
-         in
-         match res with
-         | LResult id' (inl vl) eff' => Result id' (inl (VTuple vl)) eff'
-         | LResult id' (inr ex) eff' => Result id' (inr ex) eff'
-         | LFailure => Failure
-         | LTimeout => Timeout
-         end *)
    | ECall f l => let res := 
              eval_elems (eval_fbos_expr clock') env id l eff
          in
@@ -169,35 +134,6 @@ match clock with
          end
        | r => r
    end
-(*   | ECase e l =>
-      match eval_fbos_expr env id e eff clock' with
-      | Result id' (inl v) eff' =>
-       (fix clause_eval l i' :=
-       let i := (length l) - i' in
-         match i' with
-         | 0 => Result id' (inr if_clause) eff'
-         | S i'' =>
-           match match_clause v l i with
-           | Some (gg, bb, bindings) =>
-             match eval_fbos_expr (add_bindings bindings env) id' gg eff' clock' with
-             | Result id'' (inl v) eff'' =>  
-                match v with
-                | VLit (Atom "true"%string)  => 
-                    if andb (Nat.eqb id'' id') (list_eqb effect_eqb eff' eff'')
-                    then eval_fbos_expr (add_bindings bindings env) id' bb eff' clock'
-                    else Failure (* guards cannot produce side effects *)
-                | VLit (Atom "false"%string) => clause_eval l i''
-                | _ => Failure
-                end
-             | Timeout => Timeout
-             | _ => Failure (* exception is a side effect, so it can't happen in guards *)
-             end
-           | None              => clause_eval l i''
-           end
-         end
-       ) l (length l)
-     | r => r
-     end *)
    | ELet var e1 e2 => 
       match eval_fbos_expr clock' env id e1 eff with
       | Result id' (inl v) eff' => eval_fbos_expr clock' (append_vars_to_env [var] [v] env) id' e2 eff'
