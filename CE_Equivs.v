@@ -92,7 +92,7 @@ Proof.
       ** rewrite H1 in H. apply clock_list_increase in H1. 2: auto. apply IHclock in H0.
          remember (S clock) as cl. simpl. rewrite H0. rewrite H1.
          destruct v; inversion H; subst; auto.
-         destruct ((Datatypes.length l0 =? Datatypes.length vl)%nat); auto.
+         destruct ((Datatypes.length vl =? Datatypes.length l0)%nat); auto.
          apply IHclock in H3. rewrite H3. rewrite H. auto.
       ** rewrite H1 in H. inversion H.
          apply IHclock in H0.
@@ -144,245 +144,151 @@ Proof.
   * apply clock_increase. auto.
 Qed.
 
-(* Theorem restrict env l a :
-(forall i : nat,
-    i < Datatypes.length (a :: l) ->
-    forall (id : nat) (eff : SideEffectList) (id' : nat) (res : Value + Exception)
-      (eff' : SideEffectList),
-    | env, id, nth i (a :: l) ErrorExp, eff | -e> | id', res, eff' | ->
-    exists clock : nat,
-      eval_fbos_expr env id (nth i (a :: l) ErrorExp) eff clock = Result id' res eff')
+Theorem bigger_list_clock :
+  forall clock clock' env id exps eff id' res eff',
+  clock <= clock' ->
+  eval_elems (eval_fbos_expr clock) env id exps eff = LResult id' res eff'
 ->
-forall i : nat,
-    i < Datatypes.length l ->
-    forall (id : nat) (eff : SideEffectList) (id' : nat) (res : Value + Exception)
-      (eff' : SideEffectList),
-    | env, id, nth i l ErrorExp, eff | -e> | id', res, eff' | ->
+  eval_elems (eval_fbos_expr clock') env id exps eff = LResult id' res eff'.
+Proof.
+  intros. induction H.
+  * assumption.
+  * apply clock_list_increase. 2: auto. intros. auto.
+    apply clock_increase in H1. assumption.
+Qed.
+
+Lemma restrict env a id' v' eff' (params : list Expression) (x0: list nat) x x1 id eff1:
+(forall i : nat,
+    i < Datatypes.length (a :: params) ->
     exists clock : nat,
-      eval_fbos_expr env id (nth i l ErrorExp) eff clock = Result id' res eff'.
+      eval_fbos_expr clock env (nth_def (id' :: x0) id 0 i) (nth i (a :: params) ErrorExp)
+        (nth_def (eff' :: x1) eff1 [] i) =
+      Result (nth_def (id' :: x0) id 0 (S i)) (inl (nth i (v' :: x) ErrorValue))
+        (nth_def (eff' :: x1) eff1 [] (S i)))
+->
+  (forall i : nat,
+    i < Datatypes.length params ->
+    exists clock : nat,
+      eval_fbos_expr clock env (nth_def x0 id' 0 i) (nth i params ErrorExp)
+        (nth_def x1 eff' [] i) =
+      Result (nth_def x0 id' 0 (S i)) (inl (nth i x ErrorValue))
+        (nth_def x1 eff' [] (S i))).
 Proof.
   intros.
-  assert (S i < Datatypes.length (a :: l)) as A1.
+  assert (S i < Datatypes.length (a :: params)) as A1.
   { simpl. lia. } pose (E := H (S i) A1). 
-  simpl in E. simpl. apply E. assumption.
-Qed.
-
-Theorem restrict_helper env l a id id' eff' v' eff x0 x x1 n :
-(forall i : nat,
-     i < S n ->
-     | env, nth_def (id' :: x0) id 0 i, nth i (a :: l) ErrorExp,
-     nth_def (eff' :: x1) eff [] i | -e> | nth_def (id' :: x0) id 0 (S i),
-     inl (nth i (v' :: x) ErrorValue), nth_def (eff' :: x1) eff [] (S i) |)
-->
-forall i : nat,
-     i < n ->
-     | env, nth_def x0 id' 0 i, nth i l ErrorExp,
-     nth_def x1 eff' [] i | -e> | nth_def x0 id' 0 (S i),
-     inl (nth i x ErrorValue), nth_def x1 eff' [] (S i) |.
-Proof.
-  intros.
-  assert (S i < S n) as A1.
-  { simpl. lia. } pose (E := H (S i) A1).
-  simpl in E. simpl. unfold nth_def. exact E.
-Qed.
-
-Theorem bigger_clock_list env x3 clock' l id' res eff' id1 eff1:
-(fix eval_list
-        (env0 : Environment) (id0 : nat) (exps : list Expression) 
-        (eff1 : SideEffectList) {struct exps} : ResultListType :=
-        match exps with
-        | [] => LResult id0 (inl []) eff1
-        | x :: xs =>
-            match eval_fbos_expr env0 id0 x eff1 x3 with
-            | Result id' (inl v) eff' =>
-                match eval_list env0 id' xs eff' with
-                | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
-                | LResult id'' (inr _) _ => eval_list env0 id' xs eff'
-                | _ => eval_list env0 id' xs eff'
-                end
-            | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
-            | Timeout => LTimeout
-            | Failure => LFailure
-            end
-        end) env id' l eff' = LResult id1 res eff1 ->
-  x3 <= clock'
-->
-(fix eval_list
-        (env0 : Environment) (id0 : nat) (exps : list Expression) 
-        (eff1 : SideEffectList) {struct exps} : ResultListType :=
-        match exps with
-        | [] => LResult id0 (inl []) eff1
-        | x :: xs =>
-            match eval_fbos_expr env0 id0 x eff1 clock' with
-            | Result id' (inl v) eff' =>
-                match eval_list env0 id' xs eff' with
-                | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
-                | LResult id'' (inr _) _ => eval_list env0 id' xs eff'
-                | _ => eval_list env0 id' xs eff'
-                end
-            | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
-            | Timeout => LTimeout
-            | Failure => LFailure
-            end
-        end) env id' l eff' = LResult id1 res eff1.
-Proof.
-  intros. induction H0.
-  * subst. auto.
-  * intros.
-    assert ((fix eval_list
-       (env0 : Environment) (id0 : nat) (exps : list Expression) 
-       (eff1 : SideEffectList) {struct exps} : ResultListType :=
-       match exps with
-       | [] => LResult id0 (inl []) eff1
-       | x :: xs =>
-           match eval_fbos_expr env0 id0 x eff1 m with
-           | Result id' (inl v) eff' =>
-               match eval_list env0 id' xs eff' with
-               | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
-               | LResult id'' (inr _) _ => eval_list env0 id' xs eff'
-               | _ => eval_list env0 id' xs eff'
-               end
-           | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
-           | Timeout => LTimeout
-           | Failure => LFailure
-           end
-       end) env id' l eff' = LResult id1 res eff1).
-       { auto. }
-    apply clock_list_increase in IHle. rewrite IHle in H1. assumption.
-    - intros. apply clock_increase. assumption.
+  destruct E. simpl nth_def in H1. simpl nth in H. exists x2. simpl. exact H1.
 Qed.
 
 Theorem list_sound :
-  forall l env ids eff id eff0 vals,
+forall params env ids id eff vals eff1,
 (forall i : nat,
-    i < Datatypes.length l ->
-    forall (id : nat) (eff : SideEffectList) (id' : nat) (res : Value + Exception)
-      (eff' : SideEffectList),
-    | env, id, nth i l ErrorExp, eff | -e> | id', res, eff' | ->
-    exists clock : nat, eval_fbos_expr env id (nth i l ErrorExp) eff clock = Result id' res eff')
+     i < Datatypes.length params ->
+     exists clock : nat,
+       eval_fbos_expr clock env (nth_def ids id 0 i) (nth i params ErrorExp)
+         (nth_def eff eff1 [] i) =
+       Result (nth_def ids id 0 (S i)) (inl (nth i vals ErrorValue))
+         (nth_def eff eff1 [] (S i)))
+-> Datatypes.length params = Datatypes.length vals
+-> Datatypes.length params = Datatypes.length ids
+-> Datatypes.length params = Datatypes.length eff
 ->
-(forall i : nat,
-     i < Datatypes.length l ->
-     | env, nth_def ids id 0 i, nth i l ErrorExp, nth_def eff0 eff nil i | -e>
-     | nth_def ids id 0 (S i), inl (nth i vals ErrorValue), nth_def eff0 eff nil (S i) |)
-->
-Datatypes.length l = Datatypes.length vals ->
-Datatypes.length l = Datatypes.length ids ->
-Datatypes.length l = Datatypes.length eff0 ->
-exists clock, (fix eval_list
-     (env0 : Environment) (id0 : nat) (exps : list Expression) (eff1 : SideEffectList)
-     {struct exps} : ResultListType :=
-     match exps with
-     | nil => LResult id0 (inl nil) eff1
-     | x :: xs =>
-         match eval_fbos_expr env0 id0 x eff1 clock with
-         | Result id' (inl v) eff' =>
-             match eval_list env0 id' xs eff' with
-             | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
-             | LResult id'' (inr _) _ => eval_list env0 id' xs eff'
-             | _ => eval_list env0 id' xs eff'
-             end
-         | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
-         | Timeout => LTimeout
-         | Failure => LFailure
-         end
-     end) env id l eff = LResult (last ids id) (inl vals) (last eff0 eff).
+  exists clock', eval_elems (eval_fbos_expr clock') env id params eff1 = LResult (last ids id) (inl vals) (last eff eff1).
 Proof.
-  induction l.
-  * intros. apply eq_sym, length_zero_iff_nil in H1.
-    apply eq_sym, length_zero_iff_nil in H2. apply eq_sym, length_zero_iff_nil in H3.
-    subst. exists 0. auto.
+  induction params.
+  * intros. exists 1. simpl. apply eq_sym, length_zero_iff_nil in H0.
+    apply eq_sym, length_zero_iff_nil in H1. apply eq_sym, length_zero_iff_nil in H2.
+    subst. auto.
   * intros.
-    pose (EE1 := element_exist _ _ H1).
-    pose (EE2 := element_exist _ _ H2).
-    pose (EE3 := element_exist _ _ H3).
+    pose (EE1 := element_exist _ _ H0).
+    pose (EE2 := element_exist _ _ H1).
+    pose (EE3 := element_exist _ _ H2).
     inversion EE1 as [v']. inversion EE2 as [id']. inversion EE3 as [eff'].
-    inversion H4. inversion H5. inversion H6. subst.
-    clear EE1. clear EE2. clear EE3. clear H4. clear H5. clear H6.
-    assert (0 < Datatypes.length (a :: l)). { simpl. lia. }
-    pose (P1 := H0 0 H4).
-    pose (P2 := H 0 H4 _ _ _ _ _ P1). inversion P2. simpl in H5.
-    inversion H1. inversion H2. inversion H3.
-    pose (IH := IHl env x0 eff' id' x1 x (restrict env l a H) 
-                 (restrict_helper _ _ _ _ _ _ _ _ _ _ _ (length l) H0) H7 H8 H9). inversion IH.
-    clear IH. clear IHl.
+    destruct H3. destruct H4. destruct H5.
+    clear EE1. clear EE2. clear EE3. subst.
+    simpl length in *. apply eq_add_S in H0. apply eq_add_S in H1. apply eq_add_S in H2.
+    pose (IHparams _ _ _ _ _ _ (restrict _ _ _ _ _ _ _ _ _ _ _ H) H0 H1 H2). destruct e.
+    pose (H 0 (Nat.lt_0_succ _)). destruct e.
     exists (x2 + x3).
-    apply bigger_clock with (clock' := x2 + x3) in H5. 2: lia.
-    rewrite H5.
-    apply bigger_clock_list with (clock' := x2 + x3) in H6.
-    rewrite H6.
-    rewrite last_element_equal with (def2 := eff).
-    rewrite last_element_equal with (def2 := id). auto.
-    - lia.
+    simpl in H4. (* rewrite Heqcl in *. *)
+    apply bigger_clock with (clock' := x2 + x3) in H4. 2: lia.
+    apply bigger_list_clock with (clock' := x2 + x3) in H3. 2: lia.
+    simpl eval_elems. rewrite H4, H3.
+    rewrite last_element_equal with (def2 := id).
+    rewrite last_element_equal with (def2 := eff1). auto.
+Qed.
+
+Lemma restrict2 env i id'' x1 id a params eff' x0 eff1 v' x:
+(forall j : nat,
+    j < S i ->
+    exists clock : nat,
+      eval_fbos_expr clock env (nth_def (id'' :: x1) id 0 j) (nth j (a :: params) ErrorExp)
+        (nth_def (eff' :: x0) eff1 [] j) =
+      Result (nth_def (id'' :: x1) id 0 (S j)) (inl (nth j (v' :: x) ErrorValue))
+        (nth_def (eff' :: x0) eff1 [] (S j)))
+->
+(forall j : nat,
+    j < i ->
+    exists clock : nat,
+      eval_fbos_expr clock env (nth_def (x1) id'' 0 j) (nth j (params) ErrorExp)
+        (nth_def (x0) eff' [] j) =
+      Result (nth_def (x1) id 0 (S j)) (inl (nth j (x) ErrorValue))
+        (nth_def (x0) eff' [] (S j))).
+Proof.
+  intros.
+  assert (S j < S i) as A1.
+  { simpl. lia. } pose (E := H (S j) A1). 
+  destruct E. simpl nth_def in H1. simpl nth in H. exists x2. simpl. exact H1.
 Qed.
 
 Theorem list_exception_sound :
-  forall l env ids eff id eff0 vals ex id' eff',
-(forall i : nat,
-    i < Datatypes.length l ->
-    forall (id : nat) (eff : SideEffectList) (id' : nat) (res : Value + Exception)
-      (eff' : SideEffectList),
-    | env, id, nth i l ErrorExp, eff | -e> | id', res, eff' | ->
-    exists clock : nat, eval_fbos_expr env id (nth i l ErrorExp) eff clock = Result id' res eff')
-->
+forall params env ids id eff vals eff1 eff2 id' ex i,
 (forall j : nat,
-     j < Datatypes.length vals ->
-     | env, nth_def ids id 0 j, nth j l ErrorExp, nth_def eff0 eff [] j | -e>
-     | nth_def ids id 0 (S j), inl (nth j vals ErrorValue), nth_def eff0 eff [] (S j) |)
+     j < i ->
+     exists clock : nat,
+       eval_fbos_expr clock env (nth_def ids id 0 j) (nth j params ErrorExp)
+         (nth_def eff eff1 [] j) =
+       Result (nth_def ids id 0 (S j)) (inl (nth j vals ErrorValue))
+         (nth_def eff eff1 [] (S j)))
 ->
-| env, last ids id, nth (Datatypes.length vals) l ErrorExp, 
-     last eff0 eff | -e> | id', inr ex, eff' | ->
-Datatypes.length vals < Datatypes.length l ->
-Datatypes.length ids = length vals ->
-Datatypes.length eff0 = length vals ->
-exists clock, (fix eval_list
-     (env0 : Environment) (id0 : nat) (exps : list Expression) (eff1 : SideEffectList)
-     {struct exps} : ResultListType :=
-     match exps with
-     | nil => LResult id0 (inl nil) eff1
-     | x :: xs =>
-         match eval_fbos_expr env0 id0 x eff1 clock with
-         | Result id' (inl v) eff' =>
-             match eval_list env0 id' xs eff' with
-             | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
-             | LResult id'' (inr _) _ => eval_list env0 id' xs eff'
-             | _ => eval_list env0 id' xs eff'
-             end
-         | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
-         | Timeout => LTimeout
-         | Failure => LFailure
-         end
-     end) env id l eff = LResult id' (inr ex) eff'.
+i < Datatypes.length params ->
+Datatypes.length vals = i ->
+Datatypes.length eff = i ->
+Datatypes.length ids = i ->
+| env, last ids id, nth i params ErrorExp, last eff eff1 | -e> | id', inr ex, eff2 | ->
+(exists clock : nat,
+                eval_fbos_expr clock env (last ids id) (nth i params ErrorExp) (last eff eff1) =
+                Result id' (inr ex) eff2)
+->
+(exists clock', eval_elems (eval_fbos_expr clock') env id params eff1 = LResult id' (inr ex) eff2).
 Proof.
-  induction l.
-  * intros. inversion H2.
-  * intros. destruct vals.
-    - subst. apply length_zero_iff_nil in H3. apply length_zero_iff_nil in H4. subst.
-      simpl in H1. 
-      assert (0 < Datatypes.length (a :: l)). { simpl. lia. }
-      pose (H 0 H3 _ _ _ _ _ H1). inversion e. exists x. simpl in H4. rewrite H4. auto.
-    - pose (EE1 := element_exist _ _ (eq_sym H3)).
-      pose (EE2 := element_exist _ _ (eq_sym H4)).
-      inversion EE1 as [id'']. inversion EE2 as [eff''].
-      inversion H5. inversion H6. subst.
-      clear EE1. clear EE2. clear H5. clear H6.
-      assert (0 < Datatypes.length (v :: vals)). { simpl. lia. }
-      assert (0 < Datatypes.length (a :: l)). { simpl. lia. }
-      pose (P1 := H0 0 H5).
-      pose (P2 := H 0 H6 _ _ _ _ _ P1). inversion P2. simpl in H7.
-      inversion H3. inversion H4. simpl in H2. apply Lt.lt_S_n in H2.
-      rewrite <- last_element_equal in H1.
-      rewrite <- last_element_equal in H1.
-      pose (IH := IHl env x eff'' id'' x0 vals ex id' eff' (restrict env l a H)
-               (restrict_helper _ _ _ _ _ _ _ _ _ _ _ (length vals) H0) H1 H2 H9 H10).
-      inversion IH.
-      clear IH. clear IHl.
-      exists (x1 + x2).
-      apply bigger_clock with (clock' := x1 + x2) in H7. 2: lia.
-      rewrite H7.
-      apply bigger_clock_list with (clock' := x1 + x2) in H8. 2: lia.
-      rewrite H8. auto.
-Qed. *)
+  induction params; intros.
+  * inversion H0.
+  * destruct i.
+    - simpl in H4, H5. destruct H5. exists x. simpl.
+      apply length_zero_iff_nil in H1.
+      apply length_zero_iff_nil in H2.
+      apply length_zero_iff_nil in H3. subst.
+      simpl in H5. rewrite H5. auto.
+    - pose (element_exist _ _ (eq_sym H1)).
+      pose (element_exist _ _ (eq_sym H2)).
+      pose (element_exist _ _ (eq_sym H3)).
+      destruct e as [v']. destruct e0 as [eff']. destruct e1 as [id''].
+      destruct H6. destruct H7. destruct H8.
+      subst. destruct H5.
+      pose (H 0 (Nat.lt_0_succ _)). destruct e. simpl in H6.
+      simpl in H0. apply Lt.lt_S_n in H0.
+      apply eq_add_S in H1. apply eq_add_S in H2. apply eq_add_S in H3.
+      rewrite <- last_element_equal, <- last_element_equal in H4, H5.
+      assert (exists x2, eval_fbos_expr x2 env (last x1 id'') (nth (S i) (a :: params) ErrorExp) (last x0 eff') =
+     Result id' (inr ex) eff2). { eexists. exact H5. }
+      pose (IHparams _ _ _ _ _ _ _ _ _ _ (restrict2 _ _ _ _ _ _ _ _ _ _ _ _ H) H0 H1 H2 H3 H4 H7). destruct e.
+      exists (x3 + x4). simpl.
+      apply bigger_clock with (clock' := x3 + x4) in H6.
+      apply bigger_list_clock with (clock' := x3 + x4) in H8.
+      2-3: lia.
+      rewrite H6, H8. auto.
+Qed.
 
 Theorem fbos_sound :
   forall env id exp eff id' res eff',
@@ -390,90 +296,84 @@ Theorem fbos_sound :
 ->
   (exists clock, eval_fbos_expr clock env id exp eff = Result id' res eff').
 Proof.
-  intro. intro. intros. induction H. (* induction exp using Expression_ind_2; *) intros.
-  (* 1-5: exists 1; simpl; inversion H; auto; rewrite H3; auto. *)
-  1-5 :admit.
-  * (* pose (list_sound _ _ _ _ _ _ _ H3).
-  
-  inversion H; subst.
-    - pose (IHexp2 _ _ _ _ _ H4).
-      pose (IHexp1 _ _ _ _ _ H9).
-      inversion e. inversion e0.
-      exists (S (x + x0)). simpl.
-      apply bigger_clock with (clock' := x + x0) in H0.
-      apply bigger_clock with (clock' := x + x0) in H1.
-      rewrite H0, H1. auto. lia. lia.
-    - pose (IHexp2 _ _ _ _ _ H8). inversion e.
-      exists (S x).
-      simpl. rewrite H0. auto.
-    - pose (IHexp2 _ _ _ _ _ H4). inversion e.
-      pose (IHexp1 _ _ _ _ _ H9). inversion e0.
-      exists (S (x + x0)). simpl.
-      apply bigger_clock with (clock' := x + x0) in H0.
-      apply bigger_clock with (clock' := x + x0) in H1.
-      rewrite H0, H1. auto. lia. lia.
-  * inversion H0; subst.
-    - pose (list_sound _ _ _ _ _ _ _ H H5 H2 H4 H3). inversion e.
-      exists (S x). simpl. rewrite H1. auto.
-    - pose (list_exception_sound _ _ _ _ _ _ _ _ _ _ H H6 H9 H2 H5 H4).
-      inversion e. exists (S x). simpl. rewrite H1. auto. *)
-
-Admitted.
-
-(* Lemma list_length_equal :
-forall env l id eff id' vl eff' clock,
-(fix eval_list
-          (env : Environment) (id : nat) (exps : list Expression) 
-          (eff : SideEffectList) {struct exps} : ResultListType :=
-          match exps with
-          | [] => LResult id (inl []) eff
-          | x0 :: xs =>
-              match eval_fbos_expr env id x0 eff clock with
-              | Result id' (inl v) eff' =>
-                  match eval_list env id' xs eff' with
-                  | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
-                  | LResult id'' (inr _) _ => eval_list env id' xs eff'
-                  | _ => eval_list env id' xs eff'
-                  end
-              | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
-              | Timeout => LTimeout
-              | Failure => LFailure
-              end
-          end) env id l eff = LResult id' (inl vl) eff'
--> length l = length vl.
-Proof.
-  induction l; intros.
-  * simpl. intros. inversion H. reflexivity.
-  * intros. destruct (eval_fbos_expr env id a eff clock).
-    - destruct res; simpl in *.
-      + case_eq ((fix eval_list
-         (env : Environment) (id : nat) (exps : list Expression) 
-         (eff : SideEffectList) {struct exps} : ResultListType :=
-         match exps with
-         | [] => LResult id (inl []) eff
-         | x0 :: xs =>
-             match eval_fbos_expr env id x0 eff clock with
-             | Result id' (inl v) eff' =>
-                 match eval_list env id' xs eff' with
-                 | LResult id'' (inl xs') eff'' => LResult id'' (inl (v :: xs')) eff''
-                 | LResult id'' (inr _) _ => eval_list env id' xs eff'
-                 | _ => eval_list env id' xs eff'
-                 end
-             | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
-             | Timeout => LTimeout
-             | Failure => LFailure
-             end
-         end) env id0 l eff0); intros.
-         ** destruct res.
-           -- rewrite H0 in H. inversion H. simpl. apply eq_S.
-              eapply IHl. apply H0.
-           -- rewrite H0 in H. discriminate.
-         ** rewrite H0 in H. discriminate.
-         ** rewrite H0 in H. discriminate.
-      + discriminate.
-    - discriminate.
-    - discriminate.
-Qed. *)
+  intro. intro. intros. induction H.
+  1-5: exists 2; simpl; auto; rewrite H; auto.
+  * apply list_sound in H3; auto. destruct H3. exists (S x).
+    simpl. rewrite H3. subst.
+    rewrite H4 at 2. rewrite H4 at 1. simpl. auto.
+  * destruct IHeval_expr1.
+    apply list_sound in H5; auto.
+    destruct H5. destruct IHeval_expr2.
+    exists (S (x + x0 + x1)).
+    simpl.
+    apply bigger_clock with (clock' := x + x0 + x1) in H7.
+    apply bigger_clock with (clock' := x + x0 + x1) in H8.
+    apply bigger_list_clock with (clock' := x + x0 + x1) in H5.
+    rewrite H7, H5.
+    apply Nat.eqb_eq in H1. rewrite H1.
+    rewrite H8 at 1. reflexivity.
+    1-3: lia.
+  * destruct IHeval_expr1, IHeval_expr2.
+    exists (S (x + x0)).
+    apply bigger_clock with (clock' := x + x0) in H1.
+    apply bigger_clock with (clock' := x + x0) in H2.
+    2-3: lia.
+    simpl. rewrite H1. auto.
+  * destruct IHeval_expr.
+    exists (S x). simpl. auto.
+  * destruct IHeval_expr1, IHeval_expr2.
+    exists (S (x + x0)).
+    apply bigger_clock with (clock' := x + x0) in H1.
+    apply bigger_clock with (clock' := x + x0) in H2.
+    2-3: lia.
+    simpl. rewrite H1. auto.
+  * destruct IHeval_expr1, IHeval_expr2.
+    exists (S (x + x0)).
+    apply bigger_clock with (clock' := x + x0) in H1.
+    apply bigger_clock with (clock' := x + x0) in H2.
+    2-3: lia.
+    simpl. rewrite H1. auto.
+  * eapply list_exception_sound in H4; auto.
+    - destruct H4. exists (S x). simpl. rewrite H4. reflexivity.
+    - exact H5.
+    - exact IHeval_expr.
+  * destruct IHeval_expr.
+    exists (S x). simpl. rewrite H0. auto.
+  * destruct IHeval_expr1.
+    eapply list_exception_sound in H5; auto.
+    - destruct H5. exists (S (x + x0)).
+      simpl.
+      apply bigger_clock with (clock' := x + x0) in H7. rewrite H7.
+      apply bigger_list_clock with (clock' := x + x0) in H5. rewrite H5.
+      reflexivity. 
+      1-2: lia.
+    - auto.
+    - auto.
+  * destruct IHeval_expr.
+    apply list_sound in H4; auto.
+    destruct H4.
+    exists (S (x + x0)).
+    simpl.
+    apply bigger_clock with (clock' := x + x0) in H8; try lia.
+    apply bigger_list_clock with (clock' := x + x0) in H4; try lia.
+    rewrite H8, H4.
+    destruct v.
+    - subst. auto.
+    - subst. auto.
+    - congruence.
+  * destruct IHeval_expr.
+    apply list_sound in H4; auto.
+    destruct H4.
+    exists (S (x + x0)).
+    simpl.
+    apply bigger_clock with (clock' := x + x0) in H8; try lia.
+    apply bigger_list_clock with (clock' := x + x0) in H4; try lia.
+    rewrite H8, H4.
+    apply Nat.eqb_neq in H5. rewrite H5.
+    subst. auto.
+  * destruct IHeval_expr. exists (S x).
+    simpl. rewrite H0. auto.
+Qed.
 
 Lemma list_correct :
 forall l env id eff id' vl eff' clock,

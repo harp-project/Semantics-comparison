@@ -144,7 +144,7 @@ match clock with
              eval_elems (eval_fbos_expr clock') env id l eff
          in
          match res with
-         | LResult id' (inl vl) eff' => let (a, b) := eval f vl eff' in Result id' a b
+         | LResult id' (inl vl) eff' => Result id' (fst (eval f vl eff')) (snd (eval f vl eff'))
          | LResult id' (inr ex) eff' => Result id' (inr ex) eff'
          | LFailure => Failure
          | LTimeout => Timeout
@@ -157,7 +157,7 @@ match clock with
          match res with
          | LResult id'' (inl vl) eff'' =>
            match v with
-           | VClos ref ext idcl varl body => if Nat.eqb (length vl) (length varl)
+           | VClos ref ext idcl varl body => if Nat.eqb (length varl) (length vl)
                                              then
                                                eval_fbos_expr clock' (append_vars_to_env varl vl (get_env ref ext)) id'' body eff''
                                              else Result id'' (inr (badarity v)) eff''
