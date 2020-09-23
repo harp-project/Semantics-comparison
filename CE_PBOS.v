@@ -159,7 +159,7 @@ with peval_list : Environment -> nat -> AuxList -> SideEffectList -> nat -> list
   | env, id, r, eff | -p> |id', res, eff'| ->
   |env, id', AList rest (mk_result res vals), eff' | -l> | id'', res', eff''|
 ->
-  | env, id, AList (r::rest) (inl vals), eff | -l> | id, res', eff|
+  | env, id, AList (r::rest) (inl vals), eff | -l> | id, res', eff''|
 
 | peval_exc env id eff rest ex:
   | env, id, AList rest (inr ex), eff | -l> | id, inr ex, eff|
