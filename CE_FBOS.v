@@ -77,7 +77,24 @@ Inductive ResultListType : Type :=
 
 Require Import FunInd.
 
-Fixpoint eval_fbos_expr (env : Environment) (id : nat) (exp : Expression) (eff : SideEffectList)  (clock : nat) {struct clock} : 
+Fixpoint eval_elems (f : Environment -> nat -> Expression -> SideEffectList -> ResultType) env id exps eff : ResultListType := 
+match exps with
+| []    => LResult id (inl []) eff
+| x::xs => 
+  match f env id x eff with
+  | Result id' (inl v) eff' => 
+    let res := eval_elems f env id' xs eff' in
+      match res with
+      | LResult id'' (inl xs') eff'' => LResult id'' (inl (v::xs')) eff''
+      | r => r
+      end
+  | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
+  | Failure => LFailure
+  | Timeout => LTimeout
+  end
+end.
+
+Fixpoint eval_fbos_expr (clock : nat) (env : Environment) (id : nat) (exp : Expression) (eff : SideEffectList) {struct clock} : 
   ResultType :=
 match clock with
 | 0 => Timeout
@@ -124,23 +141,7 @@ match clock with
          | LTimeout => Timeout
          end *)
    | ECall f l => let res := 
-             (fix eval_list env id exps eff : ResultListType := 
-                 match exps with
-                 | []    => LResult id (inl []) eff
-                 | x::xs => 
-                    match eval_fbos_expr env id x eff clock' with
-                    | Result id' (inl v) eff' => 
-                      let res := eval_list env id' xs eff' in
-                        match res with
-                        | LResult id'' (inl xs') eff'' => LResult id'' (inl (v::xs')) eff''
-                        | r => r
-                        end
-                    | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
-                    | Failure => LFailure
-                    | Timeout => LTimeout
-                    end
-                 end
-                 ) env id l eff
+             eval_elems (eval_fbos_expr clock') env id l eff
          in
          match res with
          | LResult id' (inl vl) eff' => let (a, b) := eval f vl eff' in Result id' a b
@@ -149,32 +150,16 @@ match clock with
          | LTimeout => Timeout
          end
    | EApp exp l =>
-      match eval_fbos_expr env id exp eff clock' with
+      match eval_fbos_expr clock' env id exp eff with
       | Result id' (inl v) eff' => let res :=
-        (fix eval_list env id exps eff : ResultListType := 
-                 match exps with
-                 | []    => LResult id (inl []) eff
-                 | x::xs => 
-                    match eval_fbos_expr env id x eff clock' with
-                    | Result id' (inl v) eff' => 
-                      let res := eval_list env id' xs eff' in
-                        match res with
-                        | LResult id'' (inl xs') eff'' => LResult id'' (inl (v::xs')) eff''
-                        | r => r
-                        end
-                    | Result id' (inr ex) eff' => LResult id' (inr ex) eff'
-                    | Failure => LFailure
-                    | Timeout => LTimeout
-                    end
-                 end
-                 ) env id' l eff'
+        eval_elems (eval_fbos_expr clock') env id' l eff'
          in
          match res with
          | LResult id'' (inl vl) eff'' =>
            match v with
            | VClos ref ext idcl varl body => if Nat.eqb (length vl) (length varl)
                                              then
-                                               eval_fbos_expr (append_vars_to_env varl vl (get_env ref ext)) id'' body eff'' (clock')
+                                               eval_fbos_expr clock' (append_vars_to_env varl vl (get_env ref ext)) id'' body eff''
                                              else Result id'' (inr (badarity v)) eff''
            | _                             => Result id'' (inr (badfun v)) eff''
            end
@@ -214,28 +199,28 @@ match clock with
      | r => r
      end *)
    | ELet var e1 e2 => 
-      match eval_fbos_expr env id e1 eff clock' with
-      | Result id' (inl v) eff' => eval_fbos_expr (append_vars_to_env [var] [v] env) id' e2 eff' clock'
+      match eval_fbos_expr clock' env id e1 eff with
+      | Result id' (inl v) eff' => eval_fbos_expr clock' (append_vars_to_env [var] [v] env) id' e2 eff'
       | r => r
       end
-   | ELetRec f l b e => eval_fbos_expr (append_funs_to_env [(f, (l, b))] env id) (S id) e eff clock'
+   | ELetRec f l b e => eval_fbos_expr clock' (append_funs_to_env [(f, (l, b))] env id) (S id) e eff
    | ETry e1 v1 e2 vl2 e3 =>
-      match eval_fbos_expr env id e1 eff clock' with
-      | Result id' (inr ex) eff' => eval_fbos_expr (append_try_vars_to_env vl2 [exclass_to_value (fst (fst ex)); snd (fst ex); snd ex] env) id' e3 eff' clock'
-      | Result id' (inl v) eff' => eval_fbos_expr (append_vars_to_env [v1] [v] env) id' e2 eff' clock'
+      match eval_fbos_expr clock' env id e1 eff with
+      | Result id' (inr ex) eff' => eval_fbos_expr clock' (append_try_vars_to_env vl2 [exclass_to_value (fst (fst ex)); snd (fst ex); snd ex] env) id' e3 eff'
+      | Result id' (inl v) eff' => eval_fbos_expr clock' (append_vars_to_env [v1] [v] env) id' e2 eff'
       | r => r
       end
   end
 end
 .
-
-(* Functional Scheme div2_ind := Induction for eval_fbos_expr Sort Set.
-TODO: report todo error here
+(*
+Functional Scheme div2_ind := Induction for eval_fbos_expr Sort Set.
+ TODO: report todo error here
  *)
 
 Example exp1 := ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) ( ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) ( ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) ( ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "Y"%string (ELit (Integer 5)) (EVar "Y"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ELet "X"%string (ELet "X"%string (ELit (Integer 5)) (EVar "X"%string)) (ECall "+"%string [EVar "X"%string; EVar "X"%string])))))))))))))))))))))))))))))))))))).
 
-Compute eval_fbos_expr [] 0 exp1 [] 10000.
+Compute eval_fbos_expr 10000 [] 0 exp1 [].
 
 Import StringSyntax.
 

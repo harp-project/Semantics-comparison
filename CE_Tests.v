@@ -54,7 +54,7 @@ Proof.
 Qed.
 
 (* functional big-step evaluation *)
-Compute eval_fbos_expr [] 0 (ELet "X" (EFun ["Y"; "Z"] (EVar "Y")) (EApp (EVar "X") [ELit (Atom "a"); ELit (Atom "b")])) [] 1000.
+Compute eval_fbos_expr 1000 [] 0 (ELet "X" (EFun ["Y"; "Z"] (EVar "Y")) (EApp (EVar "X") [ELit (Atom "a"); ELit (Atom "b")])) [].
 
 Example div_expr_example : Expression :=
   ELetRec ("f", 0) [] (ELet "X" (ECall "fwrite" [ELit (Atom "a")]) 
@@ -64,16 +64,16 @@ Example div_expr_example : Expression :=
 
 Theorem clock_decrease :
   forall clock env id exp eff,
-  eval_fbos_expr env id exp eff (S clock) = Timeout
+  eval_fbos_expr (S clock) env id exp eff = Timeout
 ->
-  eval_fbos_expr env id exp eff clock = Timeout.
+  eval_fbos_expr clock env id exp eff = Timeout.
 Proof.
 Admitted.
 
 Import List.
 
 Example div :
-  forall clock env id eff, eval_fbos_expr env id div_expr_example eff clock = Timeout.
+  forall clock env id eff, eval_fbos_expr clock env id div_expr_example eff = Timeout.
 Proof.
   induction clock.
   * auto.
