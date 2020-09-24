@@ -54,7 +54,6 @@ match el with
 if length vl =? 2 then append_vars_to_env vl es d else append_vars_to_env vl el d
 end.
 
-Compute append_try_vars_to_env ["X"%string; "Y"%string] [VNil; VNil; VNil] [].
 
 (** Not Overwriting insert *)
 (** Overwriting does not fit with this recursion *)

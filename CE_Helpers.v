@@ -76,13 +76,8 @@ match l, l' with
 end.
 
 (** Pattern matching success checker *)
-Fixpoint match_value_to_pattern (e : Value) (p : Pattern) : bool :=
+Definition match_value_to_pattern (e : Value) (p : Pattern) : bool :=
 match p with
-| PNil => 
-   match e with
-   | VNil => true
-   | _ => false
-   end
 | PVar v => true (* every e matches to a pattern variable *)
 | PLit l => match e with
   | VLit l' => match_literals l l'
@@ -114,9 +109,8 @@ Compute match_value_to_pattern (VLit (Atom "a"%string)) (PLit (Atom "a"%string))
                                (PVar "X"%string). *)
 (* Compute match_value_to_pattern (VTuple [VLit (Atom "a"%string) ; VLit (Integer 1)]) 
                                (PTuple [PVar "X"%string ; PLit (Integer 1)]).** Used variables in a pattern *)
-Fixpoint variable_occurances (p : Pattern) : list Var :=
+Definition variable_occurances (p : Pattern) : list Var :=
 match p with
- | PNil => []
  | PVar v => [v]
  | PLit l => []
 (*  | PCons hd tl => variable_occurances hd ++ variable_occurances tl
@@ -128,9 +122,8 @@ match p with
 end.
 
 (** Used variables in a pattern, but now with sets *)
-Fixpoint variable_occurances_set (p : Pattern) : set Var :=
+Definition variable_occurances_set (p : Pattern) : set Var :=
 match p with
- | PNil => []
  | PVar v => [v]
  | PLit l => []
 (*  | PCons hd tl => set_union string_dec (variable_occurances_set hd) (variable_occurances_set tl)
@@ -146,12 +139,8 @@ end.
 
 (** Extended matching function, results the variable binding list 
     Should be used together with match_value_to_pattern *)
-Fixpoint match_value_bind_pattern (e : Value) (p : Pattern) : list (Var * Value) :=
+Definition match_value_bind_pattern (e : Value) (p : Pattern) : list (Var * Value) :=
 match p with
-| PNil => match e with
-                | VNil => []
-                | _ => [] (** error *)
-                end
 | PVar v => [(v, e)] (** every e matches to a pattern variable *)
 | PLit l => match e with
   | VLit l' => if match_literals l l' then [] else [] (* Error *)
@@ -220,7 +209,6 @@ Compute variable_occurances_set (PTuple [PVar "X"%string ; PVar "X"%string]). *)
 (** Get the used variables of an expression *)
 Fixpoint variables (e : Expression) : list Var :=
 match e with
-  | ENil => []
   | ELit l => []
   | EVar v => [v]
   | EFunId f => []

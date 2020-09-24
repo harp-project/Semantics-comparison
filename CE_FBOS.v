@@ -14,7 +14,6 @@ Definition list_sum l := fold_right plus 0 l.
 
 Fixpoint exp_size (e : Expression) : nat :=
 match e with
- | ENil => 1
  | ELit l => 1
  | EVar v => 1
  | EFunId f => 1
@@ -100,7 +99,6 @@ match clock with
 | 0 => Timeout
 | S clock' =>
    match exp with
-   | ENil => Result id (inl VNil) eff
    | ELit l => Result id (inl (VLit l)) eff
    | EVar v => Result id (get_value env (inl v)) eff
    | EFunId f => Result id (get_value env (inr f)) eff

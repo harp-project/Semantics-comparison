@@ -84,8 +84,6 @@ Inductive peval_aux : Environment -> nat -> AuxExpression -> SideEffectList -> n
 
 where "| env , id , e , eff | -a> | id' , e' , eff' |" := (peval_aux env id e eff id' e' eff')
 with peval_expr : Environment -> nat -> Expression -> SideEffectList -> nat -> Value + Exception -> SideEffectList -> Prop :=
-| peval_nil (env : Environment) (eff : SideEffectList) (id : nat):
-  |env, id, ENil, eff| -p> |id, inl VNil, eff|
 
 (* literal evaluation rule *)
 | peval_lit (env : Environment) (l : Literal) (eff : SideEffectList) (id : nat):
@@ -200,7 +198,6 @@ Theorem peval_determinism :
 .
 Proof.
   apply (* intro. induction H using  *)peval_ind; intros.
-  * inversion H. subst. auto.
   * inversion H. subst. auto.
   * inversion H. subst. auto.
   * inversion H. subst. auto.

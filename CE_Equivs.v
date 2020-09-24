@@ -10,7 +10,6 @@ Section indhyp.
 
 Axiom Expression_ind_2 :
 forall P : Expression -> Prop,
-       P ENil ->
        (forall l : Literal, P (ELit l)) ->
        (forall v : Var, P (EVar v)) ->
        (forall f2 : FunctionIdentifier, P (EFunId f2)) ->
@@ -70,7 +69,6 @@ Proof.
   induction clock; intros; subst.
   * simpl in H. inversion H.
   * destruct exp.
-    - simpl in *. inversion H. auto.
     - simpl in *. inversion H. auto.
     - simpl in *. inversion H. auto.
     - simpl in *. inversion H. auto.
@@ -297,7 +295,7 @@ Theorem fbos_sound :
   (exists clock, eval_fbos_expr clock env id exp eff = Result id' res eff').
 Proof.
   intro. intro. intros. induction H.
-  1-5: exists 2; simpl; auto; rewrite H; auto.
+  1-4: exists 2; simpl; auto; rewrite H; auto.
   * apply list_sound in H3; auto. destruct H3. exists (S x).
     simpl. rewrite H3. subst.
     rewrite H4 at 2. rewrite H4 at 1. simpl. auto.
@@ -358,7 +356,6 @@ Proof.
     apply bigger_list_clock with (clock' := x + x0) in H4; try lia.
     rewrite H8, H4.
     destruct v.
-    - subst. auto.
     - subst. auto.
     - congruence.
   * destruct IHeval_expr.
@@ -479,8 +476,6 @@ Theorem fbos_correct :
 Proof.
   intro. induction exp using Expression_ind_2; intros.
   * inversion H. destruct x; inversion H0.
-    apply eval_nil.
-  * inversion H. destruct x; inversion H0.
     apply eval_lit.
   * inversion H. destruct x; inversion H0.
     apply eval_var. auto.
@@ -525,16 +520,7 @@ Proof.
                 ++ intros. congruence.
                 ++ subst. apply H3.
                 ++ subst. apply H3.
-            -- inversion H1. destruct H3, H3.
-                eapply eval_app_badfun_ex with (vals := l0) (ids := x0) (eff := x1);
-                try (apply H3).
-                ++ apply IHexp. eexists. exact H2.
-                ++ intros. destruct H3, H8, H9, H10, H11. subst.
-                   apply H. auto. exists x. subst. apply H12. auto.
-                ++ intros. congruence.
-                ++ subst. apply H3.
-                ++ subst. apply H3.
-             -- case_eq (Datatypes.length l0 =? Datatypes.length vl)%nat; intros.
+             -- case_eq (Datatypes.length vl =? Datatypes.length l0)%nat; intros.
                 ++ destruct H3, H3. destruct H3, H5, H6, H7, H8.
                   eapply eval_app with (vals := l0) (ids := x0) (eff := x1); auto.
                   *** apply IHexp. eexists. exact H2.

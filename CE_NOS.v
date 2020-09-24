@@ -6,8 +6,6 @@ Import ListNotations.
 
 Reserved Notation "| env , id , e , eff | -e> | id' , e' , eff' |" (at level 70).
 Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat -> Value + Exception -> SideEffectList -> Prop :=
-| eval_nil (env : Environment) (eff : SideEffectList) (id : nat):
-  |env, id, ENil, eff| -e> |id, inl VNil, eff|
 
 (* literal evaluation rule *)
 | eval_lit (env : Environment) (l : Literal) (eff : SideEffectList) (id : nat):
@@ -29,49 +27,6 @@ Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat 
 (* Function evaluation *)
 | eval_fun (env : Environment) (vl : list Var) (e : Expression) (eff : SideEffectList) (id : nat):
   |env, id, EFun vl e, eff| -e> |S id, inl (VClos env [] id vl e), eff|
-
-(* (* tuple evaluation rule *)
-| eval_tuple (env: Environment) (exps : list Expression) (vals : list Value) 
-     (eff1 eff2 : SideEffectList) (eff : list SideEffectList) (ids : list nat) (id id' : nat) :
-  length exps = length vals ->
-  length exps = length eff ->
-  length exps = length ids ->
-  (
-    forall i, i < length exps ->
-      |env, nth_def ids id 0 i, nth i exps ErrorExp, nth_def eff eff1 [] i| 
-     -e> 
-      |nth_def ids id 0 (S i), inl (nth i vals ErrorValue), nth_def eff eff1 [] (S i)|
-  ) ->
-  eff2 = last eff eff1 ->
-  id' = last ids id (* if length = 0, then last id = first id *)
-->
-  |env, id, ETuple exps, eff1| -e> |id' , inl (VTuple vals), eff2| *)
-
-(* list evaluation rule *)
-(* | eval_cons (env:Environment) (hd tl: Expression) (hdv tlv : Value) 
-     (eff1 eff2 eff3 : SideEffectList) (id id' id'' : nat) :
-  |env, id, tl, eff1| -e> |id', inl tlv, eff2| ->
-  |env, id', hd, eff2| -e> | id'', inl hdv, eff3|
-->
-  |env, id, ECons hd tl, eff1| -e> |id'', inl (VCons hdv tlv), eff3| *)
-
-(* (* case evaluation rules *)
-| eval_case (env: Environment) (guard exp: Expression) (e : Expression) (val : Value) (res : Value + Exception) (l : list (Pattern * Expression * Expression)) (bindings: list (Var * Value)) (i : nat) (eff1 eff2 eff3 : SideEffectList) (id id' id'' : nat) :
-  |env, id, e, eff1| -e> |id', inl val, eff2| ->
-  i < length l ->
-  match_clause val l i = Some (guard, exp, bindings) ->
-  (forall j : nat, j < i -> 
-
-    (** THESE GUARDS MUST BE SIDE-EFFECT FREE ACCORDING TO 1.0.3 LANGUAGE SPECIFICATION *)
-    (forall gg ee bb, match_clause val l j = Some (gg, ee, bb) -> 
-      (|add_bindings bb env, id', gg, eff2| -e> |id', inl ffalse, eff2| ))
-
-  ) ->
-  |add_bindings bindings env, id', guard, eff2| -e> |id', inl ttrue, eff2| -> 
-  |add_bindings bindings env, id', exp, eff2| -e> |id'', res, eff3|
-->
-  |env, id, ECase e l, eff1| -e> |id'', res, eff3| *)
-
 
 (* call evaluation rule *)
 | eval_call (env: Environment) (res : Value + Exception) (params : list Expression) 
@@ -133,42 +88,7 @@ Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat 
 ->
   |env, id, ELetRec f l b e, eff1| -e> | id', res, eff2|
 
-
-
   (* EXCEPTIONS *)
-(* list tail exception *)
-(* | eval_cons_tl_ex (env: Environment) (hd tl : Expression) (ex : Exception) 
-      (eff1 eff2 : SideEffectList) (id id' : nat) :
-  |env, id, tl, eff1| -e> |id', inr ex, eff2|
-->
-  |env, id, ECons hd tl, eff1| -e> |id', inr ex, eff2|
-
-(* list head exception *)
-| eval_cons_hd_ex (env: Environment) (hd tl : Expression) (ex : Exception) (vtl : Value) 
-     (eff1 eff2 eff3 : SideEffectList) (id id' id'' : nat) :
-  |env, id, tl, eff1| -e> |id', inl vtl, eff2| -> 
-  |env, id', hd, eff2| -e> |id'', inr ex, eff3|
-->
-  |env, id, ECons hd tl, eff1| -e> |id'', inr ex, eff3|
-
-
-(* tuple exception *)
-| eval_tuple_ex (env: Environment) (i : nat) (exps : list Expression) (vals : list Value) 
-     (ex : Exception) (eff1 eff2 : SideEffectList) (eff : list SideEffectList) 
-     (id id' : nat) (ids : list nat) :
-  i < length exps ->
-  length vals = i ->
-  length eff = i ->
-  length ids = i ->
-  (forall j, j < i ->
-    |env, nth_def ids id 0 j, nth j exps ErrorExp, nth_def eff eff1 [] j|
-   -e>
-    |nth_def ids id 0 (S j), inl (nth j vals ErrorValue), nth_def eff eff1 [] (S j)|) ->
-  |env, last ids id, nth i exps ErrorExp, last eff eff1| -e> |id', inr ex, eff2|
-->
-  |env, id, ETuple exps, eff1| -e> |id', inr ex, eff2| *)
-
-
 (* try 2x *)
 | eval_try (env: Environment) (v1 : Var) (vl2 : list Var) (e1 e2 e3 : Expression) (res : Value + Exception) (val : Value) (eff1 eff2 eff3 : SideEffectList) (id id' id'' : nat) :
   |env, id, e1, eff1| -e> | id', inl val, eff2| ->
@@ -186,30 +106,6 @@ Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat 
 ->
   |env, id, ETry e1 v1 e2 vl2 e3, eff1| -e> |id'', res, eff3|
 
-
-(* (* case 2x *)
-(** Pattern matching exception *)
-| eval_case_pat_ex (env: Environment) (e : Expression) (ex : Exception) (l : list (Pattern * Expression * Expression)) (eff1 eff2 : SideEffectList) (id id' : nat):
-  |env, id, e, eff1| -e> |id', inr ex, eff2|
-->
-  |env, id, ECase e l, eff1| -e> |id', inr ex, eff2|
-
-(** No matching clause *)
-| eval_case_clause_ex (env: Environment) (e : Expression) (l : list (Pattern * Expression * Expression)) (val : Value) (eff1 eff2 : SideEffectList) (id id' : nat):
-  |env, id, e, eff1| -e> |id', inl val, eff2| ->
-  (forall j : nat, j < length l -> 
-
-    (** THESE GUARDS MUST BE SIDE-EFFECT FREE ACCORDING TO 1.0.3 LANGUAGE SPECIFICATION *)
-    (forall gg ee bb, match_clause val l j = Some (gg, ee, bb) -> 
-      ((|add_bindings bb env, id', gg, eff2| -e> | id', inl ffalse, eff2| ))
-
-    )
-
-  )
-->
-  |env, id, ECase e l, eff1| -e> | id', inr (if_clause), eff2|
-(** ith guard exception -> guards cannot result in exception, i.e. this rule is not needed *)
- *)
 
 (* call 1x *)
 | eval_call_ex (env: Environment) (i : nat) (fname : string) (params : list Expression) 
@@ -542,7 +438,6 @@ Ltac simpl_app_H Hyp0 :=
 Ltac finishing_tactic :=
 unfold nth_def; simpl;
 match goal with
-| |- | ?env, ?id, ENil, ?eff | -e> | ?id', ?res, ?eff'| => apply eval_nil
 | |- | ?env, ?id, ELit ?lit, ?eff | -e> | ?id', ?res, ?eff'| => apply eval_lit
 | |- | ?env, ?id, EVar ?v, ?eff | -e> | ?id', ?res, ?eff'| => apply eval_var; reflexivity
 | |- | ?env, ?id, EFunId ?fid, ?eff | -e> | ?id', ?res, ?eff'| => apply eval_funid; reflexivity
@@ -569,8 +464,6 @@ end.
 Ltac solve :=
 unfold nth_def; simpl;
 match goal with
-| |- | ?env, ?id, ENil, ?eff | -e> | ?id', ?res, ?eff'| => finishing_tactic
-| |- | ?env, ?id, ENil, ?eff | -e> | ?id', ?res, ?eff'| => finishing_tactic
 | |- | ?env, ?id, ELit ?lit, ?eff | -e> | ?id', ?res, ?eff'| => finishing_tactic
 | |- | ?env, ?id, EVar ?v, ?eff | -e> | ?id', ?res, ?eff'| => finishing_tactic
 | |- | ?env, ?id, EFunId ?fid, ?eff | -e> | ?id', ?res, ?eff'| => finishing_tactic
@@ -1428,7 +1321,7 @@ Theorem nos_determinism : forall {env : Environment} {e : Expression} {v1 : Valu
 Proof.
   intro. intro. intro. intro. intro. intro. intro. intro IND. induction IND.
   (* LITERAL, VARIABLE, FUNCTION SIGNATURE, FUNCTION DEFINITION *)
-  1-4: intros; inversion H; try(inversion H0); subst; auto.
+  1-3: intros; inversion H; try(inversion H0); subst; auto.
   * intros. inversion H. auto.
 
   (* CALL *)

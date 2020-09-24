@@ -20,15 +20,13 @@ Inductive Pattern : Type :=
 | PVar     (v : Var)
 | PLit (l : Literal)
 (* | PCons  (hd tl : Pattern)
-| PTuple (l : list Pattern) *)
-| PNil.
+| PTuple (l : list Pattern) *).
 
 (* Definition PEmptyTuple : Pattern := PTuple []. *)
 
 Definition FunctionIdentifier : Type := string * nat.
 
 Inductive Expression : Type :=
-| ENil
 | ELit    (l : Literal)
 | EVar    (v : Var)
 | EFunId  (f : FunctionIdentifier)
@@ -49,7 +47,6 @@ Definition FunctionExpression : Type := list Var * Expression.
     According to CE lang spec. value sequences cannot be nested
 *)
 Inductive Value : Type :=
-| VNil
 | VLit     (l : Literal)
 | VClos    (env : list ((Var + FunctionIdentifier) * Value))
            (ext : list (nat * FunctionIdentifier * FunctionExpression))
@@ -64,7 +61,7 @@ Inductive Value : Type :=
 
 Definition ErrorValue : Value := (VLit (Atom "error"%string)).
 Definition ErrorExp : Expression := (ELit (Atom "error"%string)).
-Definition ErrorPat : Pattern := PLit(Atom "error"%string).
+(* Definition ErrorPat : Pattern := PLit(Atom "error"%string). *)
 Definition ttrue : Value := VLit (Atom "true").
 Definition ffalse : Value := VLit (Atom "false").
 Definition ok : Value := VLit (Atom "ok").
@@ -107,7 +104,7 @@ match l1, l2 with
 end.
 
 
-Fixpoint Pattern_eqb (p1 p2 : Pattern) {struct p1} : bool :=
+(* Definition Pattern_eqb (p1 p2 : Pattern) {struct p1} : bool :=
 match p1, p2 with
 | PVar v1, PVar v2 => eqb v1 v2
 | PLit l1, PLit l2 => Literal_eqb l1 l2
@@ -119,11 +116,10 @@ match p1, p2 with
                                      end) l l' *)
 | PNil, PNil => true
 | _, _ => false
-end.
+end. *)
 
-Fixpoint Value_eqb (e1 e2 : Value) : bool :=
+Definition Value_eqb (e1 e2 : Value) : bool :=
 match e1, e2 with
-| VNil, VNil => true
 | VLit l, VLit l' => Literal_eqb l l'
 | VClos env ext id p b, VClos env' ext' id' p' b' => Nat.eqb id id'
 (* | VCons hd tl, VCons hd' tl' => Value_eqb hd hd' && Value_eqb tl tl'
