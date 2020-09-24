@@ -58,7 +58,7 @@ Inductive peval_aux : Environment -> nat -> AuxExpression -> SideEffectList -> n
   | env, id, ALet v (inr ex) e2, eff | -a> | id, inr ex, eff |
 
 | peval_let_fin env var v e2 eff id id' eff' res:
-  | append_vars_to_env [var] [v] env, id, e2, eff| -p> | id', res, eff' |
+  | insert_value env (inl var) v, id, e2, eff| -p> | id', res, eff' |
 ->
   | env, id, ALet var (inl v) e2, eff | -a> | id', res, eff' |
 
@@ -71,7 +71,7 @@ Inductive peval_aux : Environment -> nat -> AuxExpression -> SideEffectList -> n
   | env, id, ACall f (inr ex), eff | -a> | id, inr ex, eff |
 
 | peval_try1_fin env id id' eff eff' v v1 e2 e3 varl res:
-  |append_vars_to_env [v1] [v] env, id, e2, eff | -p> | id', res, eff'|
+  |insert_value env (inl v1) v, id, e2, eff | -p> | id', res, eff'|
 ->
   | env, id, ATry (inl v) v1 e2 varl e3, eff | -a> | id', res, eff'|
 

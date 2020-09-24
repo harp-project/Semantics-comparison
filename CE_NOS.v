@@ -76,7 +76,7 @@ Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat 
 (* let evaluation rule *)
 | eval_let (env: Environment) (v : Var) (val : Value) (e1 e2 : Expression) (res : Value + Exception) (eff1 eff' eff'' : SideEffectList) (id id' id'' : nat) :
   |env, id, e1, eff1| -e> |id', inl val, eff'| ->
-  |append_vars_to_env [v] [val] env, id', e2, eff'| -e> |id'', res, eff''|
+  |insert_value env (inl v) val, id', e2, eff'| -e> |id'', res, eff''|
 ->
   |env, id, ELet v e1 e2, eff1| -e> |id'', res, eff''|
 
@@ -92,7 +92,7 @@ Inductive eval_expr : Environment -> nat -> Expression -> SideEffectList -> nat 
 (* try 2x *)
 | eval_try (env: Environment) (v1 : Var) (vl2 : list Var) (e1 e2 e3 : Expression) (res : Value + Exception) (val : Value) (eff1 eff2 eff3 : SideEffectList) (id id' id'' : nat) :
   |env, id, e1, eff1| -e> | id', inl val, eff2| ->
-  |append_vars_to_env [v1] [val] env, id', e2, eff2 | -e> | id'', res, eff3|
+  |insert_value env (inl v1) val, id', e2, eff2 | -e> | id'', res, eff3|
 ->
   |env, id, ETry e1 v1 e2 vl2 e3, eff1| -e> | id'', res, eff3|
 
@@ -336,7 +336,7 @@ CoInductive div_expr : Environment -> nat -> Expression -> SideEffectList -> Inf
 | div_let (env: Environment) (v : Var) (val : Value) (e1 e2 : Expression)  (eff1 eff' : SideEffectList) (id id' : nat) (eff2 eff3 : InfSideEffectList ) :
   |env, id, e1, eff1| -e> |id', inl val, eff'| ->
   eff3 = eff' +++ eff2 ->
-  |append_vars_to_env [v] [val] env, id', e2, eff'| -i> eff3
+  |insert_value env (inl v) val, id', e2, eff'| -i> eff3
 ->
   |env, id, ELet v e1 e2, eff1| -i> eff3
 where "| env , id , e , eff | -i>  eff' " := (div_expr env id e eff eff').

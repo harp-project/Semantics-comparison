@@ -134,14 +134,14 @@ match clock with
    end
    | ELet var e1 e2 => 
       match eval_fbos_expr clock' env id e1 eff with
-      | Result id' (inl v) eff' => eval_fbos_expr clock' (append_vars_to_env [var] [v] env) id' e2 eff'
+      | Result id' (inl v) eff' => eval_fbos_expr clock' (insert_value env (inl var) v) id' e2 eff'
       | r => r
       end
    | ELetRec f l b e => eval_fbos_expr clock' (append_funs_to_env [(f, (l, b))] env id) (S id) e eff
    | ETry e1 v1 e2 vl2 e3 =>
       match eval_fbos_expr clock' env id e1 eff with
       | Result id' (inr ex) eff' => eval_fbos_expr clock' (append_try_vars_to_env vl2 [exclass_to_value (fst (fst ex)); snd (fst ex); snd ex] env) id' e3 eff'
-      | Result id' (inl v) eff' => eval_fbos_expr clock' (append_vars_to_env [v1] [v] env) id' e2 eff'
+      | Result id' (inl v) eff' => eval_fbos_expr clock' (insert_value env (inl v1) v) id' e2 eff'
       | r => r
       end
   end
