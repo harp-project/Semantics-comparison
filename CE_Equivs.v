@@ -589,8 +589,8 @@ Proof.
 Qed.
 
 
-Example eq1 env id e eff clock :
-  eval_fbos_expr clock env (S id) e eff = eval_fbos_expr (S (S clock)) env id (ELet "X"%string (EFun [] e) (EApp (EVar "X"%string) [])) eff.
+Example eq1 env id e eff clock x :
+  eval_fbos_expr clock env (S id) e eff = eval_fbos_expr (S (S clock)) env id (ELet x (EFun [] e) (EApp (EVar x) [])) eff.
 Proof.
   destruct clock.
   * simpl. reflexivity.
@@ -641,10 +641,10 @@ Proof.
       split; intros; inversion H4; subst; reflexivity.
 Qed.
 
-Example eq1_pbs env id e eff id' res eff':
+Example eq1_pbs env id e eff id' res eff' x:
  |env, (S id), e, eff | -p> | id', res, eff' |
 <->
- |env, id, ELet "X"%string (EFun [] e) (EApp (EVar "X"%string) []), eff| -p> |id', res, eff'|.
+ |env, id, ELet x (EFun [] e) (EApp (EVar x) []), eff| -p> |id', res, eff'|.
 Proof.
   split; intros.
   * eapply peval_let.
@@ -667,14 +667,14 @@ Qed.
 Example eq1_nos (e : Expression) (x : Var) (id id' : nat) env res eff eff':
  |env, (S id), e, eff | -e> | id', res, eff' |
 <->
- |env, id, ELet "X"%string (EFun [] e) (EApp (EVar "X"%string) []), eff| -e> |id', res, eff'|.
+ |env, id, ELet x (EFun [] e) (EApp (EVar x) []), eff| -e> |id', res, eff'|.
 Proof.
   split; intros.
   * eapply eval_let; auto.
     - apply eval_fun.
     - simpl. eapply eval_app with (vals := []) (var_list := []) (body := e) (ref := env)
                                     (ext := []) (eff := []) (eff2 := eff) (eff3 := eff') (ids := []); auto.
-      + assert (get_value (insert_value env (inl "X") (VClos env [] id [] e)) (inl "X") 
+      + assert (get_value (insert_value env (inl x) (VClos env [] id [] e)) (inl x) 
                 = inl (VClos env [] id [] e)). { apply get_value_here. }
         rewrite <- H0. apply eval_var. reflexivity.
       + intros. inversion H0.
