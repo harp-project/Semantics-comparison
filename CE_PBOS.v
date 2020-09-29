@@ -3,7 +3,6 @@ Require Export CE_Aux.
 Import ListNotations.
 
 Inductive AuxExpression : Type :=
-| AExp (e : Expression)
 | AApp1 (b : Value + Exception) (params : list Expression)
 | AApp2 (v : Value) (b : list Value + Exception)
 | ALet (x : Var) (b : Value + Exception) (e : Expression)
