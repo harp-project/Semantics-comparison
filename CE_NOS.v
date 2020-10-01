@@ -417,7 +417,7 @@ Proof.
   }
 Qed.
 *)
-Section Tactic.
+(* Section Tactic. *)
 
 Theorem length_succ {B : Type} (a2 : B) (n : nat) (l2 : list B):
 n = length l2
@@ -691,7 +691,7 @@ Proof.
   end. solve. simpl. solve.
 Qed.
 
-End Tactic.
+(* End Tactic. *)
 
 
 Section determinism_proof.
