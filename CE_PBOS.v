@@ -158,7 +158,7 @@ with peval_list : Environment -> nat -> AuxList -> SideEffectList -> nat -> list
 ->
   | env, id, AList (r::rest) (inl vals), eff | -l> | id, res', eff''|
 
-| peval_exc env id eff rest ex:
+| peval_list_exc env id eff rest ex:
   | env, id, AList rest (inr ex), eff | -l> | id, inr ex, eff|
 
 where "| env , id , e , eff | -l> | id' , e' , eff' |" := (peval_list env id e eff id' e' eff')
@@ -175,6 +175,96 @@ Combined Scheme peval_ind from peval_expr_ind2, peval_aux_ind2, peval_list_ind2.
 
 Check peval_ind.
 
+Ltac solve_auxpbos :=
+match goal with
+
+(* INTERMEDIATE TERMS *)
+| |- |_, _, AApp1 (inr _) _, _ | -a> |_, _, _| =>
+      idtac 1; eapply peval_app1_exc
+
+| |- |_, _, AApp1 (inl _) _, _ | -a> |_, _, _| =>
+      idtac 2; eapply peval_app1_fin; decider
+
+(* Test whether this goes first *)
+| |- |_, _, AApp2 (VClos _ _ _ _ _) (inl _), _| -a> |_, _, _| =>
+      (idtac 3; eapply peval_app2_fin;
+       match goal with
+       | |- length _ = length _ => reflexivity
+       | _ => solve_pbos
+       end
+      )
+      +
+      (idtac 4; eapply peval_app2_exc2; simpl; lia)
+
+| |- |_, _, AApp2 _ (inl _), _| -a> |_, _, _| =>
+      idtac 5; eapply peval_app2_exc1; unfold not; intros; congruence
+
+| |- |_, _, AApp2 _ (inr _), _| -a> |_, _, _| =>
+      idtac 6; eapply peval_app2_exc
+
+| |- | _, _, ALet _ (inr _) _, _ | -a> | _, _, _ | =>
+      eapply peval_let_exc
+
+| |- | _, _, ALet _ (inl _) _, _ | -a> | _, _, _ | =>
+      eapply peval_let_fin; solve_pbos
+
+| |- | _, _, ACall _ (inl _), _ | -a> | _, _, _ | =>
+      eapply peval_call_fin; reflexivity
+
+| |- | _, _, ACall _ (inr _), _ | -a> | _, _, _ | =>
+      eapply peval_call_exc
+
+| |- | _, _, ATry (inl _) _ _ _ _, _ | -a> | _, _, _| =>
+      eapply peval_try1_fin; solve_pbos
+
+| |- | _, _, ATry (inr _) _ _ _ _, _ | -a> | _, _, _| =>
+      eapply peval_try1_exc; solve_pbos
+end
+with solve_pbos :=
+match goal with
+(* EXPRESSIONS *)
+| |- |_, _, ELit _, _| -p> |_, _, _| => eapply peval_lit
+| |- |_, _, EVar _, _| -p> |_, _, _| => eapply peval_var; reflexivity
+| |- |_, _, EFun _ _, _| -p> |_, _, _| => eapply peval_fun
+| |- |_, _, EFunId _, _| -p> |_, _, _| => eapply peval_funid; reflexivity
+| |- |_, _, ELet _ _ _, _| -p> |_, _, _| =>
+      idtac 1; eapply peval_let; decider
+
+| |- | _, _, EApp _ _, _ | -p> |_, _, _| =>
+      eapply peval_app; decider
+
+| |- | _, _, ECall _ _, _ | -p> | _, _, _ | =>
+      eapply peval_call; decider
+
+| |- | _, _, ETry _ _ _ _ _, _ | -p> | _, _ , _ | =>
+      eapply peval_try; decider
+
+| |- |_, _, ELetRec _ _ _ _, _| -p> | _, _, _| =>
+      eapply peval_letrec; simpl; solve_pbos
+end
+(* LISTS *)
+with solve_plist :=
+match goal with
+| |- | _, _, AList [] (inl _), _ | -l> | _, _, _| =>
+      idtac 21; eapply peval_empty
+| |- | _, _, AList _ (inr _), _ | -l> | _, _, _| =>
+      idtac 22; eapply peval_list_exc
+| |- | _, _, AList (_::_) (inl _), _ | -l> | _, _, _| =>
+      idtac 23; eapply peval_list_cons; decider
+
+(* This is needed to simplify mk_result *)
+| |- | _, _, AList _ _, _ | -l> | _, _, _| =>
+      idtac 24; simpl; solve_pbos
+end
+with decider :=
+match goal with
+| |- | _, _, _, _ | -p> | _, _, _ | => simpl; solve_pbos
+| |- | _, _, _, _ | -l> | _, _, _ | => simpl; solve_plist
+| |- | _, _, _, _ | -a> | _, _, _ | => simpl; solve_auxpbos
+end
+.
+
+Open Scope string_scope.
 
 Theorem peval_determinism :
 (

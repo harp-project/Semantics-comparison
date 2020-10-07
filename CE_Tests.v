@@ -186,7 +186,7 @@ Proof.
           -- eapply peval_var. reflexivity.
           -- eapply peval_list_cons.
             ++ eapply peval_var. reflexivity.
-            ++ eapply peval_exc.
+            ++ eapply peval_list_exc.
         ** eapply peval_app2_exc.
 Qed.
 
