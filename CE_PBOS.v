@@ -30,7 +30,7 @@ Inductive peval_aux : Environment -> nat -> AuxExpression -> SideEffectList -> n
 
 | peval_app1_fin env id id' id'' v eff eff' eff'' params res res':
   |env, id, AList params (inl []), eff| -l> |id', res, eff'| ->
-  |env, id', AApp2 v res, eff | -a> |id'', res', eff'' |
+  |env, id', AApp2 v res, eff' | -a> |id'', res', eff'' |
 ->
   |env, id, AApp1 (inl v) params, eff | -a> |id'', res', eff''|
 
@@ -156,7 +156,7 @@ with peval_list : Environment -> nat -> AuxList -> SideEffectList -> nat -> list
   | env, id, r, eff | -p> |id', res, eff'| ->
   |env, id', AList rest (mk_result res vals), eff' | -l> | id'', res', eff''|
 ->
-  | env, id, AList (r::rest) (inl vals), eff | -l> | id, res', eff''|
+  | env, id, AList (r::rest) (inl vals), eff | -l> | id'', res', eff''|
 
 | peval_list_exc env id eff rest ex:
   | env, id, AList rest (inr ex), eff | -l> | id, inr ex, eff|

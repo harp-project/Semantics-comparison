@@ -6,7 +6,7 @@ Require Import Coq.Logic.FunctionalExtensionality.
 
 Import ListNotations.
 
-Section indhyp.
+(* Section indhyp.
 
 Axiom Expression_ind_2 :
 forall P : Expression -> Prop,
@@ -31,7 +31,7 @@ forall P : Expression -> Prop,
         P e2 -> forall (vl2 : list Var) (e3 : Expression), P e3 -> P (ETry e1 v1 e2 vl2 e3)) ->
        forall e : Expression, P e.
 
-End indhyp.
+End indhyp. *)
 
 Theorem clock_list_increase :
 forall l env id eff id' res eff' clock,
@@ -541,7 +541,6 @@ Proof.
       + congruence.
 Qed.
 
-
 (** determinism is trivial *)
 Theorem fbos_deterministic :
   forall env id exp eff clock r r',
@@ -865,3 +864,187 @@ Proof.
         + simpl. apply plus_effect_changeable with (eff ++ eff1 ++ eff2). assumption.
   }
 Qed.
+
+Lemma pbos_list_correctness_helper :
+forall {l env id0 eff0 id' eff' l0} v vals,
+  | env, id0, AList l (inl vals), eff0 | -l> | id', inl l0, eff' |
+->
+  | env, id0, AList l (inl (v :: vals)), eff0 | -l> | id', inl (v :: l0), eff' |.
+Proof.
+  induction l; intros; inversion H; subst.
+  * eapply peval_empty.
+  * destruct res.
+    - simpl in H10. eapply peval_list_cons.
+      exact H9. simpl. pose(IHl _ _ _ _ _ _ v (vals ++ [v0]) H10).
+      exact p.
+    - inversion H10.
+Qed.
+
+
+Lemma fbos_pbos_list_correcness :
+forall l clock env id eff id' l' eff',
+  eval_elems (eval_fbos_expr clock) env id l eff = LResult id' (inl l') eff'
+->
+(forall (env : Environment) (id : nat) (exp : Expression) 
+          (eff : SideEffectList) (id' : nat) (res : Value + Exception)
+          (eff' : SideEffectList),
+        eval_fbos_expr clock env id exp eff = Result id' res eff' ->
+        | env, id, exp, eff | -p> | id', res, eff' |)
+->
+  | env, id, AList l (inl []), eff | -l> |id', inl l', eff'|.
+Proof.
+  induction l; intros.
+  * simpl in H. inversion H. apply peval_empty.
+  * simpl in H. case_eq (eval_fbos_expr clock env id a eff); intros; rewrite H1 in H.
+    destruct res.
+    - case_eq (eval_elems (eval_fbos_expr clock) env id0 l eff0); intros; rewrite H2 in H.
+      destruct res.
+      + inversion H. subst.
+        epose (P := IHl _ _ _ _ _ _ _ H2 _).
+        apply H0 in H1.
+        eapply peval_list_cons. exact H1. simpl.
+        pose (P1 := pbos_list_correctness_helper v [] P). exact P1.
+        Unshelve.
+        intros. apply H0. auto.
+      + congruence.
+      + congruence.
+      + congruence.
+    - congruence.
+    - congruence.
+    - congruence.
+Qed.
+
+Lemma pbos_list_correctness_helper_ex :
+forall {l env id0 eff0 id' eff' ex} v vals,
+  | env, id0, AList l (inl vals), eff0 | -l> | id', inr ex, eff' |
+->
+  | env, id0, AList l (inl (v :: vals)), eff0 | -l> | id', inr ex, eff' |.
+Proof.
+  induction l; intros; inversion H; subst.
+  * destruct res.
+    - simpl in H10. eapply peval_list_cons.
+      exact H9. simpl. pose(IHl _ _ _ _ _ _ v (vals ++ [v0]) H10).
+      exact p.
+    - simpl in H10. eapply peval_list_cons.
+      exact H9. simpl. inversion H10. subst. eapply peval_list_exc.
+Qed.
+
+Lemma fbos_pbos_list_correcness_ex :
+forall l clock env id eff id' eff' ex,
+  eval_elems (eval_fbos_expr clock) env id l eff = LResult id' (inr ex) eff'
+->
+(forall (env : Environment) (id : nat) (exp : Expression) 
+          (eff : SideEffectList) (id' : nat) (res : Value + Exception)
+          (eff' : SideEffectList),
+        eval_fbos_expr clock env id exp eff = Result id' res eff' ->
+        | env, id, exp, eff | -p> | id', res, eff' |)
+->
+  | env, id, AList l (inl []), eff | -l> |id', inr ex, eff'|.
+Proof.
+  induction l; intros.
+  * simpl in H. inversion H.
+  * simpl in H. case_eq (eval_fbos_expr clock env id a eff); intros; rewrite H1 in H.
+    destruct res.
+    - case_eq (eval_elems (eval_fbos_expr clock) env id0 l eff0); intros; rewrite H2 in H.
+      destruct res.
+      + congruence.
+      + inversion H. subst.
+        epose (P := IHl _ _ _ _ _ _ _ H2 _).
+        apply H0 in H1.
+        eapply peval_list_cons. exact H1. simpl.
+        pose (P1 := pbos_list_correctness_helper_ex v [] P). exact P1.
+        Unshelve.
+        intros. apply H0. auto.
+      + congruence.
+      + congruence.
+    - inversion H. subst. eapply H0 in H1. eapply peval_list_cons.
+      exact H1. simpl. apply peval_list_exc.
+    - congruence.
+    - congruence.
+Qed.
+
+
+Theorem fbos_pbos_correctness :
+forall clock env id exp eff id' res eff',
+  eval_fbos_expr clock env id exp eff = Result id' res eff'
+->
+  | env, id, exp, eff | -p> | id', res, eff' |.
+Proof.
+  induction clock; intros.
+  * inversion H.
+  * destruct exp.
+    - simpl in H. inversion H. subst. apply peval_lit.
+    - simpl in H. inversion H. subst. apply peval_var. auto.
+    - simpl in H. inversion H. subst. apply peval_funid. auto.
+    - simpl in H. inversion H. subst. apply peval_fun.
+    - simpl in H. case_eq (eval_elems (eval_fbos_expr clock) env id l eff); intros; rewrite H0 in H. destruct res0.
+      + apply fbos_pbos_list_correcness in H0. 2: auto.
+        inversion H. subst. eapply peval_call. exact H0.
+        eapply peval_call_fin. rewrite <- surjective_pairing. auto.
+      + apply fbos_pbos_list_correcness_ex in H0. 2: auto.
+        eapply peval_call. exact H0. inversion H. subst.
+        eapply peval_call_exc.
+      + congruence.
+      + congruence.
+    - simpl in H.
+      case_eq (eval_fbos_expr clock env id exp eff); intros; rewrite H0 in H.
+      destruct res0.
+      + case_eq (eval_elems (eval_fbos_expr clock) env id0 l eff0); intros; rewrite H1 in H.
+        destruct res0.
+        ** apply IHclock in H0.
+           apply fbos_pbos_list_correcness in H1. 2: auto.
+           eapply peval_app. exact H0.
+           eapply peval_app1_fin. exact H1.
+           destruct v.
+           -- inversion H. subst. eapply peval_app2_exc1. congruence.
+           -- case_eq ((Datatypes.length vl =? Datatypes.length l0)%nat); intros; rewrite H2 in H.
+              ++ rewrite Nat.eqb_eq in H2.
+                 eapply peval_app2_fin. auto. apply IHclock in H. auto.
+              ++ rewrite Nat.eqb_neq in H2. inversion H. subst.
+                 eapply peval_app2_exc2. auto.
+        ** apply IHclock in H0.
+           apply fbos_pbos_list_correcness_ex in H1. 2: auto.
+           inversion H. subst.
+           eapply peval_app. exact H0.
+           eapply peval_app1_fin. exact H1.
+           eapply peval_app2_exc.
+        ** congruence.
+        ** congruence.
+      + inversion H. subst. eapply peval_app.
+        apply IHclock in H0. exact H0.
+        eapply peval_app1_exc.
+      + congruence.
+      + congruence.
+    - simpl in H. case_eq (eval_fbos_expr clock env id exp1 eff); intros; rewrite H0 in H.
+      destruct res0.
+      + apply IHclock in H. apply IHclock in H0.
+        eapply peval_let. exact H0.
+        eapply peval_let_fin. exact H.
+      + apply IHclock in H0. inversion H; subst.
+        eapply peval_let. exact H0. eapply peval_let_exc.
+      + congruence.
+      + congruence.
+    - simpl in H. apply IHclock in H. eapply peval_letrec. auto.
+    - simpl in H. case_eq (eval_fbos_expr clock env id exp1 eff); intros; rewrite H0 in H.
+      destruct res0.
+      + apply IHclock in H. apply IHclock in H0.
+        eapply peval_try. exact H0.
+        eapply peval_try1_fin. exact H.
+      + apply IHclock in H0. apply IHclock in H.
+        eapply peval_try. exact H0. eapply peval_try1_exc.
+        exact H.
+      + congruence.
+      + congruence.
+Qed.
+
+
+Theorem fbos_pbos_soundness :
+forall env id exp eff id' res eff',
+  | env, id, exp, eff | -p> | id', res, eff' |
+->
+  exists clock, eval_fbos_expr clock env id exp eff = Result id' res eff'.
+Proof.
+
+Admitted.
+
+
