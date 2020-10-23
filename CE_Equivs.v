@@ -1037,27 +1037,151 @@ Proof.
       + congruence.
 Qed.
 
-Axiom alma : 
-forall env id l eff id' res eff',
-exists clock, eval_elems (eval_fbos_expr clock) env id l eff = LResult id' res eff'.
+Lemma ppbos_list_soundness_helper :
+forall {l env id0 eff0 id' eff' l0 n} v vals,
+  | env, id0, AList l (inl (v::vals)), eff0, n | -ll> | id', inl l0, eff' |
+->
+  | env, id0, AList l (inl vals), eff0, n | -ll> | id', inl (tail l0), eff' |.
+Proof.
+  induction l; intros; inversion H; subst.
+  * eapply ppeval_empty.
+  * destruct res.
+    - simpl in H10. eapply ppeval_list_cons.
+      exact H10. simpl. pose(IHl _ _ _ _ _ _ _ v (vals ++ [v0]) H11).
+      exact p.
+    - inversion H11.
+Qed.
 
-Axiom alma2 : 
-forall env id exp eff id' res eff',
-exists clock, eval_fbos_expr clock env id exp eff = Result id' res eff'.
+Lemma ppbos_list_soundness_helper_ex :
+forall {l env id0 eff0 id' eff' ex n} v vals,
+  | env, id0, AList l (inl (v::vals)), eff0, n | -ll> | id', inr ex, eff' |
+->
+  | env, id0, AList l (inl vals), eff0, n | -ll> | id', inr ex, eff' |.
+Proof.
+  induction l; intros; inversion H; subst.
+  * destruct res.
+    - simpl in H10. eapply ppeval_list_cons.
+      exact H10. simpl. pose(IHl _ _ _ _ _ _ _ v (vals ++ [v0]) H11).
+      exact p.
+    - inversion H11. subst. eapply ppeval_list_cons. exact H10.
+      exact H11.
+Qed.
 
-Fixpoint peval_length {env id exp eff id' res eff'} (p : | env, id, exp, eff | -p> |id', res, eff' |) : nat :=
-match p with
- | peval_lit env l eff id => 1
- | peval_var env s eff id res x => 1
- | peval_funid env fid eff res id x => 1
- | peval_fun env vl e eff id => 1
- | peval_let env v res e1 e2 b eff1 eff' eff'' id id' id'' x x0 => 1
- | peval_app env id id' id'' eff eff' eff'' exp params b res x x0 => 1
- | peval_call env id id' id'' eff eff' eff'' res res' f params x x0 => 1
- | peval_try env id id' id'' eff eff' eff'' e1 v1 e2 e3 vlist res res' x x0 => 1
- | peval_letrec env e b l res eff1 eff2 f id id' x => 1
-end
-.
+Theorem fst_ppbos_helper:
+forall params n env id v vals eff id' l eff',
+| env, id, AList params (inl (v::vals)), eff, S n | -ll> | id', inl l, eff' |
+->
+head l = Some v.
+Proof.
+  induction params; intros.
+  * inversion H. subst. simpl. auto.
+  * inversion H. subst. destruct res.
+    - simpl in H11. apply ppeval_list_increase with (n1 := S n) in H11. 2: lia.
+      pose (IHparams _ _ _ _ _ _ _ _ _ H11). auto.
+    - inversion H11.
+Qed.
+
+Theorem ppbos_soundess_list :
+forall params n0 env id eff id' res eff',
+  | env, id, AList params (inl []), eff, n0 | -ll> | id', res, eff' |
+->
+(forall (env : Environment) (id : nat) (exp : Expression) (eff : SideEffectList)
+        (id' : nat) (res : Value + Exception) (eff' : SideEffectList),
+      | env, id, exp, eff, n0 | -pp> | id', res, eff' | ->
+      exists clock : nat, eval_fbos_expr clock env id exp eff = Result id' res eff')
+->
+  exists clock, eval_elems (eval_fbos_expr clock) env id params eff = LResult id' res eff'.
+Proof.
+  induction params; intros.
+  * inversion H. subst. exists 1. simpl. auto.
+  * inversion H. subst. destruct res0.
+    - eapply ppeval_expr_increase in H11.
+      pose (H0 _ _ _ _ _ _ _ H11). destruct e.
+      simpl in H12.
+      destruct res.
+      + apply ppeval_list_increase with (n1 := S n) in H12. 2: lia.
+        pose (ppbos_list_soundness_helper v [] H12).
+        epose (IHparams _ _ _ _ id' _ eff' p H0). destruct e.
+        exists (x + x0). simpl. eapply bigger_clock in H1. rewrite H1.
+        eapply bigger_list_clock in H2. rewrite H2.
+        clear p.
+        apply fst_ppbos_helper in H12.
+        Search hd_error.
+        destruct l. inversion H12.
+        simpl. simpl in H12. inversion H12. auto. lia. lia.
+      + pose (ppbos_list_soundness_helper_ex _ _ H12).
+        apply ppeval_list_increase with (n1 := S n) in p. 2: lia.
+        epose (IHparams _ _ _ _ id' _ eff' p H0). destruct e0.
+        exists (x + x0). simpl.
+        eapply bigger_clock in H1. rewrite H1.
+        eapply bigger_list_clock in H2. rewrite H2.
+        auto. lia. lia.
+      + lia.
+    - inversion H12. subst.
+      eapply ppeval_expr_increase in H11.
+      pose (H0 _ _ _ _ _ _ _ H11). 2: lia. destruct e0.
+      exists (x). simpl. rewrite H1. auto.
+Qed.
+
+Theorem fbos_ppbos_soundness :
+(forall n env id exp eff id' res eff',
+  | env, id, exp, eff, n | -pp> | id', res, eff' |
+->
+  exists clock, eval_fbos_expr clock env id exp eff = Result id' res eff').
+Proof.
+  induction n; intros; inversion H; subst.
+  1-4: exists 1; auto.
+  * apply IHn in H1.
+    inversion H6; subst.
+    - destruct H1. exists (S x). simpl. rewrite H0. auto.
+    - eapply ppeval_expr_increase in H12. apply IHn in H12. 2: lia.
+      destruct H1, H12. exists (S (x + x0)). simpl.
+      eapply bigger_clock with (clock' := x + x0) in H0.
+      eapply bigger_clock with (clock' := x + x0) in H1.
+      rewrite H0. auto. lia. lia.
+  * apply IHn in H1.
+    inversion H6; subst.
+    - destruct H1. exists (S x). simpl. rewrite H0. auto.
+    - apply ppbos_soundess_list in H5.
+      2: { intros. apply IHn. eapply ppeval_expr_increase in H0. exact H0. lia. }
+      destruct H1, H5.
+      inversion H12; subst.
+      + rewrite <- Nat.eqb_eq in H7.
+        eapply ppeval_expr_increase in H14.
+        apply IHn in H14. destruct H14. exists (S (x + x0 + x1)).
+        simpl.
+        eapply bigger_clock in H0. eapply bigger_clock in H2. eapply bigger_list_clock in H1.
+        rewrite H0, H1, H2. rewrite H7. auto. all: lia.
+      + exists (S (x + x0)).
+        eapply bigger_clock in H0. eapply bigger_list_clock in H1.
+        simpl. rewrite H0, H1. destruct v.
+        ** congruence.
+        ** congruence.
+        ** lia.
+        ** lia.
+      + exists (S (x + x0)). simpl.
+        eapply bigger_clock in H0. eapply bigger_list_clock in H1.
+        rewrite H0, H1. rewrite <- Nat.eqb_neq in H13. rewrite H13. auto. lia. lia.
+      + exists (S (x + x0)). simpl.
+        eapply bigger_clock in H0. eapply bigger_list_clock in H1.
+        rewrite H0, H1. auto. lia. lia.
+  * apply ppbos_soundess_list in H1. 2: auto. destruct H1.
+    inversion H6; subst.
+    - exists (S x). simpl. rewrite H0. rewrite surjective_pairing in H11 at 1.
+      inversion H11. auto.
+    - exists (S x). simpl. rewrite H0. auto.
+  * apply IHn in H1.
+    inversion H6; subst.
+    - eapply ppeval_expr_increase in H14. apply IHn in H14. destruct H1, H14.
+      exists (S (x + x0)). simpl. eapply bigger_clock in H0.
+      eapply bigger_clock in H1. rewrite H0, H1. auto.
+      all: lia.
+    - eapply ppeval_expr_increase in H14. apply IHn in H14. destruct H1, H14.
+      exists (S (x + x0)). simpl. eapply bigger_clock in H0.
+      eapply bigger_clock in H1. rewrite H0, H1. auto.
+      all: lia.
+  * apply IHn in H5. destruct H5. exists (S x). simpl. auto.
+Qed.
 
 Theorem fbos_pbos_soundness :
 (forall env id exp eff id' res eff',
@@ -1065,9 +1189,8 @@ Theorem fbos_pbos_soundness :
 ->
   exists clock, eval_fbos_expr clock env id exp eff = Result id' res eff').
 Proof.
-  eapply peval_expr_ind2; intros.
-  1-4 : admit.
-  * inversion p0. subst.
+  intros. apply peval_ppeval in H. destruct H.
+  eapply fbos_ppbos_soundness. exact H.
 Qed.
 
 
