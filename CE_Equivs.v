@@ -1037,14 +1037,37 @@ Proof.
       + congruence.
 Qed.
 
+Axiom alma : 
+forall env id l eff id' res eff',
+exists clock, eval_elems (eval_fbos_expr clock) env id l eff = LResult id' res eff'.
+
+Axiom alma2 : 
+forall env id exp eff id' res eff',
+exists clock, eval_fbos_expr clock env id exp eff = Result id' res eff'.
+
+Fixpoint peval_length {env id exp eff id' res eff'} (p : | env, id, exp, eff | -p> |id', res, eff' |) : nat :=
+match p with
+ | peval_lit env l eff id => 1
+ | peval_var env s eff id res x => 1
+ | peval_funid env fid eff res id x => 1
+ | peval_fun env vl e eff id => 1
+ | peval_let env v res e1 e2 b eff1 eff' eff'' id id' id'' x x0 => 1
+ | peval_app env id id' id'' eff eff' eff'' exp params b res x x0 => 1
+ | peval_call env id id' id'' eff eff' eff'' res res' f params x x0 => 1
+ | peval_try env id id' id'' eff eff' eff'' e1 v1 e2 e3 vlist res res' x x0 => 1
+ | peval_letrec env e b l res eff1 eff2 f id id' x => 1
+end
+.
 
 Theorem fbos_pbos_soundness :
-forall env id exp eff id' res eff',
+(forall env id exp eff id' res eff',
   | env, id, exp, eff | -p> | id', res, eff' |
 ->
-  exists clock, eval_fbos_expr clock env id exp eff = Result id' res eff'.
+  exists clock, eval_fbos_expr clock env id exp eff = Result id' res eff').
 Proof.
-
-Admitted.
+  eapply peval_expr_ind2; intros.
+  1-4 : admit.
+  * inversion p0. subst.
+Qed.
 
 
