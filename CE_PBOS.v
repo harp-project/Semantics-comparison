@@ -629,5 +629,62 @@ Proof.
     auto.
 Qed.
 
-
+Theorem ppeval_peval :
+(forall n env id exp eff id' res eff',
+  | env, id, exp, eff, n | -pp> | id', res, eff' |
+->
+  |env, id, exp, eff| -p> |id', res, eff'|)
+with ppeval_aux_peval_aux :
+(forall n env id exp eff id' res eff',
+  | env, id, exp, eff, n | -aa> | id', res, eff' |
+->
+  |env, id, exp, eff| -a> |id', res, eff'|)
+with ppeval_list_peval_list :
+(forall n env id exp eff id' res eff',
+  | env, id, exp, eff, n | -ll> | id', res, eff' |
+->
+  |env, id, exp, eff| -l> |id', res, eff'|)
+.
+Proof.
+{
+  induction n; intros; inversion H; subst.
+  * eapply peval_lit.
+  * eapply peval_var. auto.
+  * eapply peval_funid. auto.
+  * eapply peval_fun.
+  * eapply peval_let. apply IHn in H1. exact H1.
+    apply ppeval_aux_peval_aux in H6. exact H6.
+  * eapply peval_app. apply IHn in H1. exact H1.
+    apply ppeval_aux_peval_aux in H6. exact H6.
+  * eapply peval_call. eapply ppeval_list_peval_list in H1. exact H1.
+    eapply ppeval_aux_peval_aux in H6. exact H6.
+  * eapply peval_try. eapply IHn in H1. exact H1.
+    eapply ppeval_aux_peval_aux in H6. exact H6.
+  * eapply peval_letrec. eapply IHn in H5. exact H5.
+}
+{
+  induction n; intros; inversion H; subst.
+  * eapply peval_app1_exc.
+  * eapply peval_app1_fin. eapply ppeval_list_peval_list in H1. exact H1.
+    eapply IHn in H6. exact H6.
+  * eapply peval_app2_fin. auto.
+    eapply ppeval_peval in H6. exact H6.
+  * eapply peval_app2_exc1. congruence.
+  * eapply peval_app2_exc2. congruence.
+  * eapply peval_app2_exc.
+  * eapply peval_let_exc.
+  * eapply peval_let_fin. eapply ppeval_peval in H5. exact H5.
+  * eapply peval_call_fin. auto.
+  * eapply peval_call_exc.
+  * eapply peval_try1_fin. eapply ppeval_peval in H5. exact H5.
+  * eapply peval_try1_exc. eapply ppeval_peval in H5. exact H5.
+}
+{
+  induction n; intros; inversion H; subst.
+  * eapply peval_empty.
+  * eapply peval_list_cons. apply ppeval_peval in H1. exact H1.
+    eapply IHn in H6. exact H6.
+  * eapply peval_list_exc.
+}
+Qed.
 
