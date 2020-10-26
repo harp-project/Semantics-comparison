@@ -1194,3 +1194,24 @@ Proof.
 Qed.
 
 
+Theorem nos_pbos_soundness :
+  forall env id exp eff id' res eff',
+  | env, id, exp, eff | -e> | id', res, eff' |
+->
+  | env, id, exp, eff | -p> | id', res, eff' |.
+Proof.
+  intros.
+  pose (fbos_sound _ _ _ _ _ _ _ H). destruct e.
+  eapply fbos_pbos_correctness. exact H0.
+Qed.
+
+Theorem nos_pbos_correctness :
+  forall env id exp eff id' res eff',
+  | env, id, exp, eff | -p> | id', res, eff' |
+->
+  | env, id, exp, eff | -e> | id', res, eff' |.
+Proof.
+  intros.
+  pose (fbos_pbos_soundness _ _ _ _ _ _ _ H). destruct e.
+  eapply fbos_correct. exact H0.
+Qed.
