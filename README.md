@@ -10,6 +10,6 @@ This project aims to investigate and compare different big-step style formal sem
 - `CE_PBOS.v` contains the pretty-big-step semantics
 - `CE_FBOS.v` contains the functional big-step semantics
 - `CE_Tests.v` contains simple expression evaluation tests
-- `CE_Equivs.v` contains expression equivalence proofs, moreover, theorems about the functional big-step semantics
+- `CE_Equivs.v` contains expression equivalence proofs, moreover, theorems about the functional big-step semantics, and semantics equivalence
 
 The source code is licensed under GPL v3.
