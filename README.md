@@ -13,3 +13,7 @@ This project aims to investigate and compare different big-step style formal sem
 - `CE_Equivs.v` contains expression equivalence proofs, moreover, theorems about the functional big-step semantics, and semantics equivalence
 
 The source code is licensed under GPL v3.
+
+# Acknowledgements
+
+Supported by the project "Integrált kutatói utánpótlás-képzési program az informatika és számítástudomány diszciplináris területein (Integrated program for training new generation of researchers in the disciplinary fields of computer science)", No. EFOP-3.6.3-VEKOP-16-2017-00002. The project has been supported by the European Union and co-funded by the European Social Fund.
