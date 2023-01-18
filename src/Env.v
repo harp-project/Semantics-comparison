@@ -1,5 +1,5 @@
 
-Require Export CE_Helpers.
+From CE Require Export Helpers.
 
 Import ListNotations.
 

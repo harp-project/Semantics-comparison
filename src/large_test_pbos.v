@@ -1,4 +1,4 @@
-Require Export CE_Tests.
+From CE Require Export Tests.
 
 Import ListNotations.
 

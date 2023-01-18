@@ -1,4 +1,4 @@
-Require Export CE_Syntax.
+From CE Require Export Syntax.
 Require Lia.
 From Coq Require Classes.EquivDec.
 From Coq Require Lists.ListSet.

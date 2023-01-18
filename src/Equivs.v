@@ -1,6 +1,4 @@
-Require Export CE_FBOS.
-Require Export CE_NOS.
-Require Export CE_PBOS.
+From CE Require Export FBOS NOS PBOS.
 
 Require Import Coq.Logic.FunctionalExtensionality.
 

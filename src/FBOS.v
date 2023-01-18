@@ -1,4 +1,4 @@
-Require Export CE_Aux.
+From CE Require Export Aux.
 
 Import ListNotations.
 

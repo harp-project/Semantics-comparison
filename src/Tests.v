@@ -1,6 +1,4 @@
-Require Export CE_NOS.
-Require Export CE_FBOS.
-Require Export CE_PBOS.
+From CE Require Export NOS FBOS PBOS.
 
 Import ListNotations.
 

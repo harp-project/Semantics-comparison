@@ -1,4 +1,4 @@
-Require Export CE_Env.
+From CE Require Export Env.
 
 Import ListNotations.
 
